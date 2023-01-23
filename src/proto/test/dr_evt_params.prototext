@@ -1,0 +1,11 @@
+sim_setup {
+    seed: 7
+    max_jobs: 10
+    outfile: "sim_out.txt"
+}
+trace_setup {
+    max_jobs: 10
+    seed: 1234
+    infile: "trace.txt"
+    outfile: "trace_out.txt"
+}

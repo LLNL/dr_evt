@@ -1,0 +1,93 @@
+# This will create IMPORTED targets for DR_EVT. The executables will be
+# DR_EVT::<exe-name>-bin (e.g., DR_EVT::dr_evt-bin) and the library will
+# be DR_EVT::dr_evt.
+
+include("${CMAKE_CURRENT_LIST_DIR}/DR_EVT_ConfigVersion.cmake")
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/modules")
+list(APPEND CMAKE_MODULE_PATH "@EXTRA_CMAKE_MODULE_DIR@")
+
+include(GNUInstallDirs)
+include(ExternalProject)
+include(DR_EVT_CMakeUtilities)
+include(CMakePackageConfigHelpers)
+
+
+set(DR_EVT_VERSION ${PACKAGE_VERSION})
+
+# Record compiler information
+set(DR_EVT_CXX_COMPILER "@CMAKE_CXX_COMPILER@")
+set(DR_EVT_C_COMPILER "@CMAKE_C_COMPILER@")
+
+set(DR_EVT_CXX_FLAGS "@CMAKE_CXX_FLAGS@")
+
+set(DR_EVT_CXX_STANDARD "@CMAKE_CXX_STANDARD@")
+
+# Fix the CXX and CUDA standards
+if (CMAKE_CXX_STANDARD LESS DR_EVT_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD "${DR_EVT_CXX_STANDARD}")
+endif ()
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+
+# Record the various flags and switches accumlated in DR_EVT
+set(DR_EVT_GNU_LINUX @DR_EVT_GNU_LINUX@)
+set(DR_EVT_HAS_CEREAL @DR_EVT_HAS_CEREAL@)
+set(DR_EVT_HAS_CATCH2 @DR_EVT_HAS_CATCH2@)
+set(DR_EVT_HAS_DOXYGEN @DR_EVT_HAS_DOXYGEN@)
+set(DR_EVT_HAS_OPENMP @DR_EVT_HAS_OPENMP@)
+set(DR_EVT_HAS_NUMA @DR_EVT_HAS_NUMA@)
+set(DR_EVT_HAS_STD_FILESYSTEM @DR_EVT_HAS_STD_FILESYSTEM@)
+set(DR_EVT_HAS_PROTOBUF @DR_EVT_HAS_PROTOBUF@)
+
+# Setup dependencies
+
+if (NOT BOOST_ROOT)
+  set(BOOST_ROOT "@BOOST_ROOT@")
+  if (NOT BOOST_ROOT)
+    unset(BOOST_ROOT)
+  endif (NOT BOOST_ROOT)
+endif (NOT BOOST_ROOT)
+
+if (DR_EVT_HAS_PROTOBUF)
+  set(PROTOBUF_MIN_VERSION "@PROTOBUF_MIN_VERSION@")
+
+  if (NOT Protobuf_DIR)
+    set(Protobuf_DIR "@Protobuf_DIR@")
+  endif ()
+  if ("@Protobuf_PROTOC_EXECUTABLE@")
+    set(Protobuf_PROTOC_EXECUTABLE "@Protobuf_PROTOC_EXECUTABLE@")
+  endif ()
+
+  find_package(Protobuf "${PROTOBUF_MIN_VERSION}" CONFIG QUIET
+    NAMES protobuf PROTOBUF
+    HINTS
+    "${Protobuf_DIR}" "$ENV{Protobuf_DIR}"
+    PATH_SUFFIXES lib64/cmake/protobuf lib/cmake/protobuf
+    NO_DEFAULT_PATH)
+endif (DR_EVT_HAS_PROTOBUF)
+
+
+@PACKAGE_INIT@
+
+# Now actually import the DR_EVT target
+set(_TMP_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIRS@")
+foreach (_DIR ${_TMP_INCLUDE_DIRS})
+  set_and_check(_INCLUDE_DIR "${_DIR}")
+  list(APPEND DR_EVT_INCLUDE_DIRS "${_INCLUDE_DIR}")
+endforeach (_DIR "${_TMP_INCLUDE_DIRS}")
+
+set(_TMP_LIBRARY_DIRS "@PACKAGE_LIB_INSTALL_DIR@")
+foreach (_DIR ${_TMP_LIBRARY_DIRS})
+  set_and_check(_LIBRARY_DIR "${_DIR}")
+  list(APPEND DR_EVT_LIBRARY_DIRS "${_LIBRARY_DIR}")
+endforeach (_DIR ${_TMP_LIBRARY_DIRS})
+
+if (NOT TARGET DR_EVT::dr_evt)
+  include(${CMAKE_CURRENT_LIST_DIR}/DR_EVT_Targets.cmake)
+endif (NOT TARGET DR_EVT::dr_evt)
+
+check_required_components(DR_EVT)
+check_required_components(protobuf)
+
+set(DR_EVT_LIBRARIES DR_EVT::dr_evt)

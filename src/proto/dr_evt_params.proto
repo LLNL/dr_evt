@@ -1,0 +1,44 @@
+/******************************************************************************
+ *                                                                            *
+ *    Copyright 2023   Lawrence Livermore National Security, LLC and other    *
+ *    Whole Cell Simulator Project Developers. See the top-level COPYRIGHT    *
+ *    file for details.                                                       *
+ *                                                                            *
+ *    SPDX-License-Identifier: MIT                                            *
+ *                                                                            *
+ ******************************************************************************/
+
+syntax = "proto3";
+
+package dr_evt_proto;
+
+message DR_EVT_Params {
+    message Simulation_Params {
+        // The seed for random number generator. Without this,
+        // it will use a value dependent on the current system clock.
+        uint32 seed = 1;
+
+        // The maximum number of jobs to run.
+        uint32 max_jobs = 2;
+        // The upper limit of simulation time to run.
+        double max_time = 3;
+
+        string infile = 4;
+        string outfile = 5;
+    }
+
+    message Tracing_Params {
+        uint32    seed = 1;  ///< Random number seed
+
+        // The maximum number of jobs to trace.
+        uint32 max_jobs = 2;
+        // The upper limit of time in job history (as a timestamp) to trace.
+        string max_time = 3;
+
+        string infile = 4;
+        string outfile = 5;
+    }
+
+    Simulation_Params sim_setup = 1;
+    Tracing_Params trace_setup = 2;
+}
