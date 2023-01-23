@@ -19,32 +19,45 @@
 
 namespace dr_evt {
 
-#define OPTIONS "hi:j:o:s:t:"
+#define OPTIONS "d:hi:j:o:s:m:t:"
 static const struct option longopts[] = {
+    {"datfile",  required_argument,  0, 'd'},
     {"help",     no_argument,        0, 'h'},
     {"infile",   required_argument,  0, 'i'},
     {"max_jobs", required_argument,  0, 'j'},
     {"outfile",  required_argument,  0, 'o'},
-    {"seed",     required_argument,  0, 's'},
+    {"subfile",  required_argument,  0, 's'},
+    {"subsumf",  required_argument,  0, 'm'},
     {"max_time", required_argument,  0, 't'},
     { 0, 0, 0, 0 },
 };
 
 Trace_Params::Trace_Params()
-  : m_seed(0u), m_max_jobs(10u),
+  : m_max_jobs(10u),
     m_max_time(dr_evt::max_tstamp),
+    m_datfile("out-dat.txt"),
+    m_subfile("out-stat_submission.txt"),
+    m_subsumfile("out-stat_submission_summary.txt"),
     m_is_jobs_set(false),
     m_is_time_set(false)
 {}
 
-void Trace_Params::getopt(int& argc, char** &argv)
+bool Trace_Params::getopt(int& argc, char** &argv)
 {
     int c;
     m_is_jobs_set = false;
     m_is_time_set = false;
 
+    if (argc < 2) {
+        print_usage(argv[0], 0);
+        return false;
+    }
+
     while ((c = getopt_long(argc, argv, OPTIONS, longopts, NULL)) != -1) {
         switch (c) {
+            case 'd': /* --datfile */
+                m_datfile = std::string(optarg);
+                break;
             case 'h': /* --help */
                 print_usage(argv[0], 0);
                 break;
@@ -58,29 +71,41 @@ void Trace_Params::getopt(int& argc, char** &argv)
             case 'o': /* --outfile */
                 m_outfile = std::string(optarg);
                 break;
-            case 's': /* --seed */
-                m_seed = static_cast<unsigned>(atoi(optarg));
+            case 's': /* --subfile */
+                m_subfile = std::string(optarg);
+                break;
+            case 'm': /* --subsumf */
+                m_subsumfile = std::string(optarg);
                 break;
             case 't': /* --max_time */
-                m_max_time = static_cast<dr_evt::tstamp_t>(optarg);
+                m_max_time = optarg;
                 m_is_time_set = true;
                 break;
             default:
                 print_usage(argv[0], 1);
+                return false;
                 break;
         }
     }
 
-    if (optind != (argc - 1)) {
-        print_usage (argv[0], 1);
+    if (m_infile.empty() && (optind != (argc - 1))) {
+        print_usage(argv[0], 1);
+        return false;
     }
 
-    m_infile = argv[optind];
+    if (optind == (argc - 1)) {
+        if (!m_infile.empty()) {
+            print_usage(argv[0], 1);
+            return false;
+        }
+        m_infile = argv[optind];
+    }
     set_outfile(m_outfile);
 
     if (!m_is_jobs_set && m_is_time_set) {
         m_max_jobs = std::numeric_limits<decltype(m_max_jobs)>::max();
     }
+    return true;
 }
 
 void Trace_Params::print_usage(const std::string exec, int code)
@@ -89,9 +114,11 @@ void Trace_Params::print_usage(const std::string exec, int code)
         "Usage: " << exec << " inputfile\n"
         "    Run tracing on a job history file to extract statistics\n"
         "    upto a specified time or a number of jobs.\n"
-        "    Initialize the simulation with a random number seed.\n"
         "\n"
         "  OPTIONS:\n"
+        "    -d, --datfile\n"
+        "        Specify the out file name for DAT sessions detected.\n"
+        "\n"
         "    -h, --help\n"
         "        Display this usage information\n"
         "\n"
@@ -104,9 +131,11 @@ void Trace_Params::print_usage(const std::string exec, int code)
         "    -o, --outfile\n"
         "        Specify the output file name for simulation.\n"
         "\n"
-        "    -s, --seed\n"
-        "        Specify the seed for random number generator. Without this,\n"
-        "        it will use a value dependent on the current system clock.\n"
+        "    -s, --subfile\n"
+        "        Specify the output file name for submission stats.\n"
+        "\n"
+        "    -m, --subsumf\n"
+        "        Specify the output file name for submission stats summary.\n"
         "\n"
         "    -t, --max_time\n"
         "        Specify the upper limit of simulation time to run.\n"
@@ -120,11 +149,13 @@ void Trace_Params::print() const
     using std::string;
     string msg;
     msg = "------ Trace params ------\n";
-    msg += " - seed: " + to_string(m_seed) + "\n";
     msg += " - max_jobs: " + to_string(m_max_jobs) + "\n";
     msg += " - max_time: " + m_max_time + "\n";
     msg += " - infile: " + m_infile + "\n";
     msg += " - outfile: " + m_outfile + "\n";
+    msg += " - datfile: " + m_datfile + "\n";
+    msg += " - subfile: " + m_subfile + "\n";
+    msg += " - subsumf: " + m_subsumfile + "\n";
     msg += " - is_jobs_set: " + string{m_is_jobs_set? "true" : "false"} + "\n";
     msg += " - is_time_set: " + string{m_is_time_set? "true" : "false"} + "\n";
 
@@ -141,11 +172,6 @@ void Trace_Params::set_outfile(const std::string& ofname)
             m_outfile = "trace_out.txt";
         }
     }
-}
-
-std::string Trace_Params::get_outfile() const
-{
-    return m_outfile;
 }
 
 } // end of namespace dr_evt

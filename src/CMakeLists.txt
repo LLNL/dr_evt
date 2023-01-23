@@ -1,6 +1,7 @@
 # Add the source files for this directory
 set_full_path(THIS_DIR_HEADERS
     boost.hpp
+    common.hpp
     dr_evt_types.hpp
 )
 

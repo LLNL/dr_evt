@@ -1,5 +1,8 @@
 # Add the header and source files for this directory
 set_full_path(THIS_DIR_HEADERS
+    job_submit_common.hpp
+    job_submit_model.hpp
+    multi_platform_runs.hpp
     sim.hpp
 )
 

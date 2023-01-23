@@ -55,8 +55,6 @@ static void set_trace_options(
 {
     //using trace_params = dr_evt_proto::DR_EVT_Params::Tracing_Params;
 
-    tp.m_seed = cfg.seed();
-
     tp.m_max_jobs = cfg.max_jobs();
     tp.m_max_time = cfg.max_time();
 
@@ -65,6 +63,9 @@ static void set_trace_options(
 
     tp.m_infile = cfg.infile();
     tp.set_outfile(cfg.outfile());
+    tp.m_datfile = cfg.outfile_dat();
+    tp.m_subfile = cfg.outfile_sub();
+    tp.m_subsumfile = cfg.outfile_subsum();
 
     if (!tp.m_is_time_set) {
         tp.m_max_time = dr_evt::max_tstamp;

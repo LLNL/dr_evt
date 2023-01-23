@@ -27,23 +27,30 @@ namespace dr_evt {
 class Trace_Params {
  public:
     Trace_Params();
-    void getopt(int& argc, char** &argv);
+    bool getopt(int& argc, char** &argv);
     void print_usage(const std::string exec, int code);
     void print() const;
+    std::string get_infile() const { return m_infile; }
     void set_outfile(const std::string& ofname);
-    std::string get_outfile() const;
+    std::string get_outfile() const { return m_outfile; }
+    std::string get_datfile() const { return m_datfile; }
+    std::string get_subfile() const { return m_subfile; }
+    std::string get_subsumfile() const { return m_subsumfile; }
 
-    unsigned m_seed;
-    dr_evt::num_jobs_t m_max_jobs;
-    tstamp_t m_max_time;
+    num_jobs_t max_num_jobs() const { return m_max_jobs; }
+    bool is_max_jobs_set() const { return m_is_jobs_set; }
+
+    num_jobs_t m_max_jobs;
+    std::string m_max_time;
 
     std::string m_infile;
+    std::string m_outfile;
+    std::string m_datfile; ///< Outfile name for detected DAT sessions
+    std::string m_subfile; ///< Outfile name for Submission stats
+    std::string m_subsumfile; ///< Outfile name for submission stat summary
 
     bool m_is_jobs_set;
     bool m_is_time_set;
-
- private:
-    std::string m_outfile;
 };
 
 /**@}*/

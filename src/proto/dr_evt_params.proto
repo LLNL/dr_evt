@@ -28,15 +28,16 @@ message DR_EVT_Params {
     }
 
     message Tracing_Params {
-        uint32    seed = 1;  ///< Random number seed
-
         // The maximum number of jobs to trace.
-        uint32 max_jobs = 2;
+        uint32 max_jobs = 1;
         // The upper limit of time in job history (as a timestamp) to trace.
-        string max_time = 3;
+        string max_time = 2;
 
-        string infile = 4;
-        string outfile = 5;
+        string infile = 3;
+        string outfile = 4;
+        string outfile_dat = 5;
+        string outfile_sub = 6;
+        string outfile_subsum = 7;
     }
 
     Simulation_Params sim_setup = 1;

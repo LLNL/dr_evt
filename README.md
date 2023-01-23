@@ -13,7 +13,7 @@
    e.g., clang++ 5.0 or later, g++ 7.1 or later, and icpc 19.0.1 or later
 
  + **GNU Boost library**
-   The particular boost libraries used are `graph`, `filesystem`, `regex` and
+   The particular boost libraries used are `multi_index`, `filesystem`, `regex` and
    `system`.
    To build with other pre-existing installation of boost, set the environment
    variable `BOOST_ROOT` or pass `-DBOOST_ROOT=<path-to-boost>`
