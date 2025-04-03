@@ -1,0 +1,1 @@
+To ensure Results directory doesn't get deleted when empty of results. 
