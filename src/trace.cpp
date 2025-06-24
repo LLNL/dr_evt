@@ -41,6 +41,11 @@ int process_trace(const dr_evt::Trace_Params& cfg)
         data.reserve(max_num_jobs);
 
     int rc = trace.load_data(max_num_jobs);
+    if (rc != EXIT_SUCCESS) {
+        std::cerr << "trace loading not successful! : " << rc << std::endl;
+        return rc;
+    }
+    std::cout << trace.data().size() << " jobs have been loaded." << std::endl;
     trace.run_job_trace();
 
     std::cout << "Trace ";

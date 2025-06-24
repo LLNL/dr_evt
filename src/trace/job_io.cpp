@@ -42,8 +42,10 @@ int load(const string& fname,
 
     const auto& columns_to_read = dcols.get_cols_to_read();
     const auto record_sz = columns_to_read.size();
+    const auto q_idx = dcols.get_queue_idx();
 
     if (columns_to_read.empty()) {
+        std::cerr << "no column to read!" << std::endl;
         return EXIT_SUCCESS;
     }
 
@@ -72,7 +74,7 @@ int load(const string& fname,
             const auto& pos = val_pos [col_idx];
             string substr = line.substr(pos.first, pos.second);
           #if !SHOW_ALL_QUEUE
-            if (col_idx == 4) { // Check the job queue
+            if (col_idx == q_idx) { // Check the job queue
               #if INCLUDE_DAT || MARK_DAT_PERIOD
                 bool q1 = false, q2 = false;
                #if 0 // Case-insensitive search
