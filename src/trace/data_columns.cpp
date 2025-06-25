@@ -31,8 +31,13 @@ Data_Columns::Data_Columns()
     // fill out a job record object. However, they might still be used in
     // filtering.
     m_cols_to_read = {
+#if 0
         {11, "num_nodes"}, {23, "begin_time"}, {24, "end_time"},
         {29, "job_submit_time"}, {30, "queue"}, {32, "time_limit"}
+#else
+        {8, "num_nodes"}, {16, "begin_time"}, {17, "end_time"},
+        {19, "job_submit_time"}, {20, "queue"}, {22, "time_limit"}
+#endif
     };
     m_col_to_avoid = "user_script";
     init();

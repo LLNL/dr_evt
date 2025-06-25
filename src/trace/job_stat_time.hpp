@@ -8,8 +8,8 @@
  *                                                                            *
  ******************************************************************************/
 
-#ifndef DR_EVT_TRACE_JOB_STAT_TEXEC
-#define DR_EVT_TRACE_JOB_STAT_TEXEC
+#ifndef DR_EVT_TRACE_JOB_STAT_TIME
+#define DR_EVT_TRACE_JOB_STAT_TIME
 #include <map>
 #include <array>
 #include <vector>
@@ -17,7 +17,8 @@
 #include <stdexcept>
 #include <algorithm>
 #include "common.hpp"
-#include "trace/job_record.hpp"
+#include "trace/trace.hpp"
+#include "sim/job_time_common.hpp"
 
 namespace dr_evt {
 /** \addtogroup dr_evt_trace
@@ -26,9 +27,10 @@ namespace dr_evt {
 /**
  *  Statistics on job run time given timeout limit.
  */
-template <size_t N>
-class Job_Stat_Texec {
+class Job_Stat_Time {
   public:
+    using ratio_t = float;
+    using bin_info_t = std::pair<ratio_t, num_jobst_t>;
     /**
      *  Execution time distribution. If the number of bins is 4 for instance,
      *  each bin represents a quartile of the timeout--[0%, 25%), [25%, 50%),
@@ -37,7 +39,7 @@ class Job_Stat_Texec {
      *  the quartile, and the distribution shows how long jobs actually ran
      *  compared to the timeout set by users.
      */
-    using tbins_t = typename std::array<num_jobs_t, N>;
+    using tbins_t = typename std::vector<bin_info_t>;
 
     /**
      *  Execution time distribution for each resource set, i.e., the number of
@@ -55,36 +57,44 @@ class Job_Stat_Texec {
     using tjob_t = std::map<timeout_t, timeout_slot>;
 
   protected:
+    size_t m_default_num_bins;
     tjob_t m_tjob;
+    void add_stat(const Job_Record& j);
 
   public:
-    Job_Stat_Texec();
+    Job_Stat_Time(const size_t N=4);
 
-    void add_stat(const Job_Record& j);
+    void process(const Trace& trace);
 };
 
-template <std::size_t N>
-Job_Stat_Texec<N>::Job_Stat_Texec()
+/**
+ *  Change the bins of job counts to the list of accumulated quantity and
+ *  probability.
+ */
+void Job_Stat_Time::finalize()
 {
-    if (N == 0ul) {
-        std::string err = "Number of limit time segments should not be zero.";
-        throw std::invalid_argument(err);
+    for (auto& slot_tout: m_tjobs) {
+        for (auto& slot_nodes: slot_tout.m_bins) {
+             auto sum = static_cast<num_jobs_t>(0u);
+             for (auto& slot_texe: slot_nodes) {
+                 auto cnt = slot_texe.second;
+                 slot_texe.second = sum;
+                 sum += cnt;
+             }
+
+             if (sum == static_cast<num_jobs_t>(0u)) {
+                 // A slot is created only when there is a job to add
+                 std::string err = "Total number of jobs cannot be zero.";
+                 throw std::runtme_error(err);
+             }
+             const auto sum_f = static_cast<ratio_t>(sum);
+             for (auto& slot_texe: slot_nodes) {
+                 slot_texe.first = slot_texe.second/sum_f;
+             }
+        }
     }
-}
-
-template <std::size_t N>
-void Job_Stat_Texec<N>::add_stat(const Job_Records& j)
-{
-    const auto t_exec = j.get_exec_time();
-    const auto t_limit = j.get_limit_time()
-    const auto n_nodes = j.get_num_nodes();
-
-    auto i = std::max(static_cast<size_t>((t_exec / t_limit) * N), N-1);
-    const slot& = m_tjobs[t_limit];
-    slot.m_bins[n_nodes][i] ++; // This does not work without initialization
-    slot.m_num_jobs ++;
 }
 
 /**@}*/
 } // end of namespace dr_evt
-#endif // DR_EVT_TRACE_JOB_STAT_TEXEC
+#endif // DR_EVT_TRACE_JOB_STAT_TIME

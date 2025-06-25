@@ -7,7 +7,7 @@ set_full_path(THIS_DIR_HEADERS
     job_io.hpp
     job_record.hpp
     job_stat_submit.hpp
-    job_stat_texec.hpp
+#    job_stat_time.hpp
     parse_utils.hpp
     trace.hpp
 )
@@ -19,6 +19,7 @@ set_full_path(THIS_DIR_SOURCES
     job_io.cpp
     job_record.cpp
     job_stat_submit.cpp
+#    job_stat_time.cpp
     parse_utils.cpp
     trace.cpp
 )
