@@ -19,12 +19,10 @@
 #include "sim/scheduler_sjf.hpp"
 #include <algorithm>
 #include <cmath>
-#include <functional>
 #include <iostream>
 #include <limits>
 #include <map>
 #include <stdexcept>
-#include <unordered_map>
 
 namespace dr_evt {
 
@@ -169,54 +167,38 @@ create_scheduler(num_nodes_t total_nodes, size_t initial_job_count,
         std::exit(1);
       }
 
-      // Factory function table indexed by log2(block_size)
-      using FactoryFunc = std::function<std::unique_ptr<SchedulerBase>()>;
-      static const std::unordered_map<size_t, FactoryFunc> factories = {
-          {2,
-           [&]() {
-             return std::make_unique<BlockQueueFCFSScheduler<4>>(
-                 total_nodes, backfill_policy);
-           }},
-          {3,
-           [&]() {
-             return std::make_unique<BlockQueueFCFSScheduler<8>>(
-                 total_nodes, backfill_policy);
-           }},
-          {4,
-           [&]() {
-             return std::make_unique<BlockQueueFCFSScheduler<16>>(
-                 total_nodes, backfill_policy);
-           }},
-          {5,
-           [&]() {
-             return std::make_unique<BlockQueueFCFSScheduler<32>>(
-                 total_nodes, backfill_policy);
-           }},
-          {6,
-           [&]() {
-             return std::make_unique<BlockQueueFCFSScheduler<64>>(
-                 total_nodes, backfill_policy);
-           }},
-          {7,
-           [&]() {
-             return std::make_unique<BlockQueueFCFSScheduler<128>>(
-                 total_nodes, backfill_policy);
-           }},
-          {8,
-           [&]() {
-             return std::make_unique<BlockQueueFCFSScheduler<256>>(
-                 total_nodes, backfill_policy);
-           }},
-      };
-
-      auto it = factories.find(log2_size);
-      if (it == factories.end()) {
+      // Dispatch on log2(block_size). This used to be a function-static
+      // table of lambdas capturing total_nodes and backfill_policy by
+      // reference; the table was built once, so every later call ran the
+      // first call's captured references (stack-use-after-return under
+      // ASan). A switch has no captured state.
+      switch (log2_size) {
+      case 2:
+        return std::make_unique<BlockQueueFCFSScheduler<4>>(total_nodes,
+                                                            backfill_policy);
+      case 3:
+        return std::make_unique<BlockQueueFCFSScheduler<8>>(total_nodes,
+                                                            backfill_policy);
+      case 4:
+        return std::make_unique<BlockQueueFCFSScheduler<16>>(total_nodes,
+                                                             backfill_policy);
+      case 5:
+        return std::make_unique<BlockQueueFCFSScheduler<32>>(total_nodes,
+                                                             backfill_policy);
+      case 6:
+        return std::make_unique<BlockQueueFCFSScheduler<64>>(total_nodes,
+                                                             backfill_policy);
+      case 7:
+        return std::make_unique<BlockQueueFCFSScheduler<128>>(
+            total_nodes, backfill_policy);
+      case 8:
+        return std::make_unique<BlockQueueFCFSScheduler<256>>(
+            total_nodes, backfill_policy);
+      default:
         std::cerr << "Error: block_size " << block_size
                   << " not supported. Use 4, 8, 16, 32, 64, 128, or 256.\n";
         std::exit(1);
       }
-
-      return it->second();
     } else if (queue_impl == QueueImplementation::MULTIMAP) {
       return std::make_unique<FCFSAltScheduler>(total_nodes, backfill_policy);
     } else if (queue_impl == QueueImplementation::DEQUE) {
