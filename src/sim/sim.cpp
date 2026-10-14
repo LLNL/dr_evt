@@ -256,74 +256,79 @@ void start_restart_output_segment(const std::string &filename,
 } // namespace
 
 template <typename TraceType>
-BasicSimulation<TraceType>::BasicSimulation(const Sim_Params &params)
-    : m_params(params), m_trace(params.m_infile, params.m_trace_format,
-                                params.m_timestamp_format, params.m_timezone),
+BasicSimulation<TraceType>::BasicSimulation(Sim_Params params)
+    : m_params(std::move(params)),
+      m_trace(m_params.m_infile, m_params.m_trace_format,
+              m_params.m_timestamp_format, m_params.m_timezone),
       m_scheduler(create_scheduler(
-          params.m_total_nodes, m_trace.data().size(), params.m_backfill_policy,
-          params.m_priority_policy, params.m_queue_impl, params.m_block_size,
-          params.m_wait_queue_capacity, params.m_wait_queue_overflow)),
+          m_params.m_total_nodes, m_trace.data().size(),
+          m_params.m_backfill_policy, m_params.m_priority_policy,
+          m_params.m_queue_impl, m_params.m_block_size,
+          m_params.m_wait_queue_capacity, m_params.m_wait_queue_overflow)),
       m_custom_scheduler(nullptr), m_current_time(0.0),
-      m_job_rejection_capacity(params.m_total_nodes),
-      m_capacity_changes(load_capacity_schedule(params.m_capacity_schedule,
-                                                params.m_total_nodes)),
-      m_next_capacity_change(0), m_current_capacity(params.m_total_nodes),
+      m_job_rejection_capacity(m_params.m_total_nodes),
+      m_capacity_changes(load_capacity_schedule(m_params.m_capacity_schedule,
+                                                m_params.m_total_nodes)),
+      m_next_capacity_change(0), m_current_capacity(m_params.m_total_nodes),
       m_capacity_area(0.0), m_capacity_area_time(0.0), m_jobs_completed(0),
       m_jobs_submitted(0), m_next_progressive_file(0),
       m_checkpoint_loaded(false), m_last_automatic_checkpoint_jobs(0),
       m_has_automatic_checkpoint(false),
       m_last_automatic_checkpoint_time(0.0),
       m_pre_start_jobs(0), m_warm_resource_area(0.0),
-      m_warm_resource_end(0.0), m_rng(params.m_seed), m_queue_length_sum(0),
+      m_warm_resource_end(0.0), m_rng(m_params.m_seed), m_queue_length_sum(0),
       m_queue_length_samples(0), m_queue_length_peak(0) {
   reset_capacity_schedule();
 }
 
 template <typename TraceType>
-BasicSimulation<TraceType>::BasicSimulation(const Sim_Params &params,
+BasicSimulation<TraceType>::BasicSimulation(Sim_Params params,
                                             job_cost_function_t cost_function,
                                             backfill_selector_t selector)
-    : m_params(params), m_trace(params.m_infile, params.m_trace_format,
-                                params.m_timestamp_format, params.m_timezone),
+    : m_params(std::move(params)),
+      m_trace(m_params.m_infile, m_params.m_trace_format,
+              m_params.m_timestamp_format, m_params.m_timezone),
       m_scheduler(std::make_unique<CustomFCFSScheduler>(
-          params.m_total_nodes, m_trace.data().size(), params.m_backfill_policy,
-          params.m_num_max_candidates, std::move(cost_function),
-          std::move(selector), params.m_wait_queue_capacity,
-          params.m_wait_queue_overflow)),
+          m_params.m_total_nodes, m_trace.data().size(),
+          m_params.m_backfill_policy, m_params.m_num_max_candidates,
+          std::move(cost_function),
+          std::move(selector), m_params.m_wait_queue_capacity,
+          m_params.m_wait_queue_overflow)),
       m_custom_scheduler(static_cast<CustomFCFSScheduler *>(m_scheduler.get())),
-      m_current_time(0.0), m_job_rejection_capacity(params.m_total_nodes),
-      m_capacity_changes(load_capacity_schedule(params.m_capacity_schedule,
-                                                params.m_total_nodes)),
-      m_next_capacity_change(0), m_current_capacity(params.m_total_nodes),
+      m_current_time(0.0), m_job_rejection_capacity(m_params.m_total_nodes),
+      m_capacity_changes(load_capacity_schedule(m_params.m_capacity_schedule,
+                                                m_params.m_total_nodes)),
+      m_next_capacity_change(0), m_current_capacity(m_params.m_total_nodes),
       m_capacity_area(0.0), m_capacity_area_time(0.0), m_jobs_completed(0),
       m_jobs_submitted(0), m_next_progressive_file(0),
       m_checkpoint_loaded(false), m_last_automatic_checkpoint_jobs(0),
       m_has_automatic_checkpoint(false),
       m_last_automatic_checkpoint_time(0.0),
       m_pre_start_jobs(0), m_warm_resource_area(0.0),
-      m_warm_resource_end(0.0), m_rng(params.m_seed), m_queue_length_sum(0),
+      m_warm_resource_end(0.0), m_rng(m_params.m_seed), m_queue_length_sum(0),
       m_queue_length_samples(0), m_queue_length_peak(0) {
   reset_capacity_schedule();
 }
 
 template <typename TraceType>
 BasicSimulation<TraceType>::BasicSimulation(
-    const Sim_Params &params, std::unique_ptr<CustomFCFSScheduler> scheduler)
-    : m_params(params), m_trace(params.m_infile, params.m_trace_format,
-                                params.m_timestamp_format, params.m_timezone),
+    Sim_Params params, std::unique_ptr<CustomFCFSScheduler> scheduler)
+    : m_params(std::move(params)),
+      m_trace(m_params.m_infile, m_params.m_trace_format,
+              m_params.m_timestamp_format, m_params.m_timezone),
       m_scheduler(std::move(scheduler)),
       m_custom_scheduler(static_cast<CustomFCFSScheduler *>(m_scheduler.get())),
-      m_current_time(0.0), m_job_rejection_capacity(params.m_total_nodes),
-      m_capacity_changes(load_capacity_schedule(params.m_capacity_schedule,
-                                                params.m_total_nodes)),
-      m_next_capacity_change(0), m_current_capacity(params.m_total_nodes),
+      m_current_time(0.0), m_job_rejection_capacity(m_params.m_total_nodes),
+      m_capacity_changes(load_capacity_schedule(m_params.m_capacity_schedule,
+                                                m_params.m_total_nodes)),
+      m_next_capacity_change(0), m_current_capacity(m_params.m_total_nodes),
       m_capacity_area(0.0), m_capacity_area_time(0.0), m_jobs_completed(0),
       m_jobs_submitted(0), m_next_progressive_file(0),
       m_checkpoint_loaded(false), m_last_automatic_checkpoint_jobs(0),
       m_has_automatic_checkpoint(false),
       m_last_automatic_checkpoint_time(0.0),
       m_pre_start_jobs(0), m_warm_resource_area(0.0),
-      m_warm_resource_end(0.0), m_rng(params.m_seed), m_queue_length_sum(0),
+      m_warm_resource_end(0.0), m_rng(m_params.m_seed), m_queue_length_sum(0),
       m_queue_length_samples(0), m_queue_length_peak(0) {
   if (!m_scheduler) {
     throw std::invalid_argument("custom scheduler must not be null");

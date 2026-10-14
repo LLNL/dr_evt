@@ -52,8 +52,10 @@ class SchedulerBase;
  */
 template <typename TraceType> class BasicSimulation {
 protected:
-  /// Simulation parameters
-  const Sim_Params &m_params;
+  /// Simulation parameters. Stored by value so the simulation owns its
+  /// configuration and the caller's Sim_Params may be a temporary or go out
+  /// of scope after construction.
+  Sim_Params m_params;
 
   /// Job trace data
   TraceType m_trace;
@@ -142,7 +144,7 @@ public:
    * @brief Construct a simulation from immutable configuration.
    * @param[in] params Immutable simulation configuration.
    */
-  BasicSimulation(const Sim_Params &params);
+  BasicSimulation(Sim_Params params);
 
   /**
    * @brief Construct a simulation with experimental external backfill choice.
@@ -150,11 +152,11 @@ public:
    * @param[in] cost_function Callback that computes a job's cost at insertion.
    * @param[in] selector Callback that chooses one of the reported candidates.
    */
-  BasicSimulation(const Sim_Params &params, job_cost_function_t cost_function,
+  BasicSimulation(Sim_Params params, job_cost_function_t cost_function,
                   backfill_selector_t selector);
 
   /** Construct a simulation with a configured Custom-FCFS subclass. */
-  BasicSimulation(const Sim_Params &params,
+  BasicSimulation(Sim_Params params,
                   std::unique_ptr<CustomFCFSScheduler> scheduler);
 
   /**
