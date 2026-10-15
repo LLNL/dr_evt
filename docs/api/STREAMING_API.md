@@ -219,9 +219,11 @@ combined result. For Redis, rebuild the canonical namespace in place with
 `dr_evt_stitch_checkpoint_output --redis-uri URI --redis-prefix PREFIX`.
 
 Checkpoint/restart is compiled when `DR_EVT_WITH_SER20=ON`. Checkpoints are
-Ser20 binary, same-build artifacts rather than a portable exchange format. The
+Ser20 binary, same-build artifacts rather than a portable exchange format. A
+checkpoint records the complete `Sim_Params` of the run that wrote it; the
 destination must use matching scheduling, runtime, capacity, and output
-configuration. Callback-based Custom FCFS is supported when the destination
+configuration, which is validated field by field on restore, and the recorded
+configuration is available afterwards through `Simulation::restored_params()`. Callback-based Custom FCFS is supported when the destination
 simulation is constructed with equivalent cost and selection callbacks. The
 checkpoint restores its queue entries, previously computed costs, candidate
 state, and accounting without invoking the cost callback during load; callback

@@ -156,6 +156,14 @@ void test_exact_continuation_case(QueueImplementation queue_impl,
   checkpoint.seekg(0);
   Simulation restarted(params);
   restarted.load_checkpoint(checkpoint);
+  // The checkpoint carries the complete configuration of the run that wrote
+  // it, including fields that are not validated on restore.
+  assert(restarted.restored_params().has_value());
+  assert(restarted.restored_params()->m_total_nodes == params.m_total_nodes);
+  assert(restarted.restored_params()->m_seed == params.m_seed);
+  assert(restarted.restored_params()->m_max_jobs == params.m_max_jobs);
+  assert(restarted.restored_params()->m_trace_format == params.m_trace_format);
+  assert(restarted.restored_params()->m_infile == params.m_infile);
   const auto restored_stats = restarted.get_statistics();
   assert(restored_stats.current_time == checkpoint_stats.current_time);
   assert(restored_stats.jobs_completed == checkpoint_stats.jobs_completed);
