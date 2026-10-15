@@ -72,11 +72,18 @@ public:
   num_jobs_t max_num_jobs() const { return m_max_jobs; }
   /** @brief Report whether a job limit was supplied. @return true when set. */
   bool is_max_jobs_set() const { return m_is_jobs_set; }
+  /** @brief Return the inclusive event-time boundary for replay.
+   *  @return Maximum timestamp; meaningful only if is_max_time_set(). */
+  sim_time_t get_max_time() const { return m_max_time; }
+  /** @brief Report whether a time limit was supplied. @return true when set. */
+  bool is_max_time_set() const { return m_is_time_set; }
 
   /// Maximum jobs to process.
   num_jobs_t m_max_jobs;
-  /// Maximum timestamp or time limit expressed as text.
-  std::string m_max_time;
+  /// Inclusive event-time boundary, in the same units and with the same
+  /// meaning as the simulator's --max_time: events at or before this time
+  /// are processed, later ones are not.
+  sim_time_t m_max_time;
 
   /// Input trace filename.
   std::string m_infile;

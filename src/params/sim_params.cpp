@@ -233,7 +233,13 @@ void Sim_Params::getopt(int &argc, char **&argv) {
           parse_uint("--seed", std::numeric_limits<unsigned>::max()));
       break;
     case 't': /* --max_time */
-      m_max_time = static_cast<dr_evt::sim_time_t>(std::stod(optarg));
+      try {
+        m_max_time = static_cast<dr_evt::sim_time_t>(std::stod(optarg));
+      } catch (const std::exception &) {
+        std::cerr << "Error: --max_time expects a number, got '" << optarg
+                  << "'" << std::endl;
+        print_usage(argv[0], 1);
+      }
       m_is_time_set = true;
       break;
     case 'b': /* --backfill_policy */

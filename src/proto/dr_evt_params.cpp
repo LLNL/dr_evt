@@ -363,10 +363,20 @@ set_trace_options(const dr_evt_proto::DR_EVT_Params::Tracing_Params &cfg,
   // using trace_params = dr_evt_proto::DR_EVT_Params::Tracing_Params;
 
   tp.m_max_jobs = cfg.max_jobs();
-  tp.m_max_time = cfg.max_time();
-
   tp.m_is_jobs_set = (tp.m_max_jobs > 0u);
-  tp.m_is_time_set = (!tp.m_max_time.empty());
+  // The proto field is text; parse and validate it the way the tracer's
+  // own --max_time option is handled (finite, nonnegative seconds).
+  tp.m_is_time_set = (!cfg.max_time().empty());
+  if (tp.m_is_time_set) {
+    try {
+      tp.m_max_time = std::stod(cfg.max_time());
+    } catch (const std::exception &) {
+      throw std::runtime_error("max_time is not a number: " + cfg.max_time());
+    }
+    if (!std::isfinite(tp.m_max_time) || tp.m_max_time < 0.0) {
+      throw std::runtime_error("max_time must be finite and nonnegative");
+    }
+  }
 
   tp.m_infile = cfg.infile();
   tp.set_outfile(cfg.outfile());
@@ -375,7 +385,7 @@ set_trace_options(const dr_evt_proto::DR_EVT_Params::Tracing_Params &cfg,
   tp.m_subsumfile = cfg.outfile_subsum();
 
   if (!tp.m_is_time_set) {
-    tp.m_max_time = dr_evt::max_tstamp;
+    tp.m_max_time = dr_evt::max_sim_time;
   }
   if (!tp.m_is_jobs_set && tp.m_is_time_set) {
     tp.m_max_jobs = std::numeric_limits<decltype(tp.m_max_jobs)>::max();

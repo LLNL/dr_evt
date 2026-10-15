@@ -858,7 +858,7 @@ if(DR_EVT_WITH_UNIT_TESTING)
     NAME test_max_time
     COMMAND /bin/bash
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_max_time_tests.sh
-      $<TARGET_FILE:sim-bin>)
+      $<TARGET_FILE:sim-bin> $<TARGET_FILE:trace-bin>)
   add_test(
     NAME test_cli_input
     COMMAND /bin/bash

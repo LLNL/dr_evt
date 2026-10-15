@@ -12,6 +12,7 @@
 #include "params/trace_params.hpp"
 #include "trace/parse_utils.hpp"
 #include "utils/file.hpp"
+#include <cmath>
 #include <cstdlib>
 #include <getopt.h>
 #include <iostream>
@@ -39,7 +40,8 @@ static const struct option trace_longopts[] = {
 };
 
 Trace_Params::Trace_Params()
-    : m_max_jobs(10u), m_max_time(dr_evt::max_tstamp), m_datfile(), m_subfile(),
+    : m_max_jobs(10u), m_max_time(dr_evt::max_sim_time), m_datfile(),
+      m_subfile(),
       m_subsumfile(), m_resource_history_capacity(0),
       m_total_nodes(dr_evt::total_nodes), m_is_jobs_set(false),
       m_is_time_set(false) {}
@@ -97,7 +99,15 @@ bool Trace_Params::getopt(int &argc, char **&argv) {
       m_subsumfile = std::string(optarg);
       break;
     case 't': /* --max_time */
-      m_max_time = optarg;
+      // Same parsing and validation as the simulator's --max_time.
+      try {
+        m_max_time = static_cast<dr_evt::sim_time_t>(std::stod(optarg));
+      } catch (const std::exception &) {
+        std::cerr << "Error: --max_time expects a number, got '" << optarg
+                  << "'" << std::endl;
+        print_usage(argv[0], 1);
+        return false;
+      }
       m_is_time_set = true;
       break;
     case 'n': /* --total_nodes */
@@ -129,6 +139,12 @@ bool Trace_Params::getopt(int &argc, char **&argv) {
       return false;
     }
     m_infile = argv[optind];
+  }
+  if (m_is_time_set && (!std::isfinite(m_max_time) || m_max_time < 0.0)) {
+    std::cerr << "Error: --max_time must be finite and nonnegative"
+              << std::endl;
+    print_usage(argv[0], 1);
+    return false;
   }
   if (!m_is_jobs_set && m_is_time_set) {
     m_max_jobs = std::numeric_limits<decltype(m_max_jobs)>::max();
@@ -195,7 +211,7 @@ void Trace_Params::print() const {
   string msg;
   msg = "------ Trace params ------\n";
   msg += " - max_jobs: " + to_string(m_max_jobs) + "\n";
-  msg += " - max_time: " + m_max_time + "\n";
+  msg += " - max_time: " + to_string(m_max_time) + "\n";
   msg += " - infile: " + m_infile + "\n";
   msg += " - outfile: " + m_outfile + "\n";
   msg += " - datfile: " + m_datfile + "\n";
