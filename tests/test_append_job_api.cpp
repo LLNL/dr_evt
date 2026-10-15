@@ -231,6 +231,24 @@ void test_append_rejects_past_submit_time() {
   }
   assert(threw);
 
+  // Out-of-order appends are rejected too: the wait queue releases
+  // arrivals in insertion order, so a t=200 job appended after a t=300
+  // job would silently wait until t=300.
+  [[maybe_unused]] job_no_t j_late =
+      sim.append_job(300.0, 10, kTestQueueInput, 50);
+  threw = false;
+  try {
+    sim.append_job(200.0, 10, kTestQueueInput, 50);
+  } catch (const std::invalid_argument &) {
+    threw = true;
+  }
+  assert(threw);
+  // Equal submit times remain fine.
+  [[maybe_unused]] job_no_t j_same =
+      sim.append_job(300.0, 10, kTestQueueInput, 50);
+  std::cout << "  append_job(200) after append_job(300) rejected; equal time ok"
+            << std::endl;
+
   std::cout << "  PASSED" << std::endl;
 }
 
