@@ -532,7 +532,18 @@ void Sim_Params::getopt(int &argc, char **&argv) {
       print_usage(argv[0], 1);
     }
   }
-  set_outfile(m_outfile);
+  // Deriving the default output name throws when the input itself ends in
+  // ".out", since the run would overwrite its own input. Report that as an
+  // ordinary usage error rather than letting it escape main() and abort.
+  try {
+    set_outfile(m_outfile);
+  } catch (const std::exception &e) {
+    std::cerr << "Error: " << e.what() << std::endl
+              << "Input files ending in '.out' need an explicit output name; "
+                 "pass -o/--outfile."
+              << std::endl;
+    print_usage(argv[0], 1);
+  }
 
   if (m_redis_uri.empty() != m_redis_key_prefix.empty()) {
     std::cerr << "Error: --redis_uri and --redis_key_prefix must be specified "

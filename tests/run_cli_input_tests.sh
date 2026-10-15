@@ -125,5 +125,28 @@ else
     FAIL=$((FAIL + 1))
 fi
 
+# 7. An input whose name ends in ".out" cannot get the default output name
+#    (it would overwrite itself). That used to escape as an uncaught
+#    exception and abort; it must be an ordinary usage error, and an
+#    explicit -o must still work.
+cp "$TRACE" "$WORK_DIR/previous.out"
+if "$SIMULATOR" "$WORK_DIR/previous.out" --total_nodes 2 \
+        >"$WORK_DIR/dotout.log" 2>&1; then
+    echo "  ✗ a .out input with no -o was accepted"
+    FAIL=$((FAIL + 1))
+elif grep -q "terminate called" "$WORK_DIR/dotout.log"; then
+    echo "  ✗ a .out input with no -o aborted instead of failing cleanly"
+    FAIL=$((FAIL + 1))
+elif grep -q "pass -o/--outfile" "$WORK_DIR/dotout.log" \
+     && "$SIMULATOR" "$WORK_DIR/previous.out" --total_nodes 2 \
+            --outfile "$WORK_DIR/from_dotout.csv" >/dev/null 2>&1 \
+     && cmp -s "$WORK_DIR/positional.out" "$WORK_DIR/from_dotout.csv"; then
+    echo "  ✓ a .out input is rejected without -o and runs with it"
+    PASS=$((PASS + 1))
+else
+    echo "  ✗ a .out input: unexpected message or -o run failed"
+    FAIL=$((FAIL + 1))
+fi
+
 echo "CLI input tests: $PASS passed, $FAIL failed"
 test "$FAIL" -eq 0
