@@ -473,10 +473,17 @@ void test_exclusive_vs_inclusive() {
   assert(sim.get_nodes_in_use() == 10);
   std::cout << "  advance_to(0): START processed, 10 nodes" << std::endl;
 
+  // A second job that starts at t=2 and ends at t=5 lies strictly before
+  // the target, so run_until_exclusive(10) must process both of its events
+  // and leave the clock at t=5. A no-op implementation (which this once
+  // was) would leave the clock at 0 and never run the job.
+  [[maybe_unused]] job_no_t j1 = sim.append_job(2.0, 5, kTestQueueInput, 3);
   sim.run_until_exclusive(10.0);
+  assert(sim.get_current_time() == 5.0);
   assert(sim.get_nodes_in_use() == 10);
-  std::cout << "  run_until_exclusive(10): END not processed, still 10 nodes"
-            << std::endl;
+  assert(sim.get_statistics().jobs_completed == 1);
+  std::cout << "  run_until_exclusive(10): events at 2 and 5 processed, END"
+            << " at 10 not processed, still 10 nodes" << std::endl;
 
   sim.advance_to(10.0);
   assert(sim.get_nodes_in_use() == 0);
