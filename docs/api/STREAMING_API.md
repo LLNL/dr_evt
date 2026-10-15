@@ -66,7 +66,9 @@ job_no_t append_job(sim_time_t submit_time, num_nodes_t num_nodes,
 ```
 
 **Parameters:**
-- `submit_time`: When the job is submitted (must be >= current_time)
+- `submit_time`: When the job is submitted (must be >= current_time and >=
+  the submit time of every job appended before it; appends are released in
+  insertion order, so an earlier time would otherwise be held back silently)
 - `num_nodes`: Number of nodes the job requests
 - `queue`: Numeric queue ID (for example, `"1"`) in the default build, or a
   queue name (for example, `"pbatch"`) with `DR_EVT_LEGACY_QUEUE_INPUT`

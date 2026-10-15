@@ -61,7 +61,7 @@ timeout_t checked_streaming_limit(tdiff_t limit_time) {
 
 constexpr std::array<char, 8> checkpoint_magic{'D', 'R', 'E', 'V',
                                                'T', 'C', 'K', 'P'};
-constexpr std::uint32_t checkpoint_version = 7; // 7: adds m_jobs_started
+constexpr std::uint32_t checkpoint_version = 8; // 8: adds m_latest_submit_time
 constexpr std::uint64_t checkpoint_collection_limit = 100000000;
 constexpr std::uint64_t checkpoint_string_limit = 64 * 1024 * 1024;
 
@@ -271,7 +271,9 @@ BasicSimulation<TraceType>::BasicSimulation(Sim_Params params)
                                                 m_params.m_total_nodes)),
       m_next_capacity_change(0), m_current_capacity(m_params.m_total_nodes),
       m_capacity_area(0.0), m_capacity_area_time(0.0), m_jobs_completed(0),
-      m_jobs_submitted(0), m_jobs_started(0), m_next_progressive_file(0),
+      m_jobs_submitted(0), m_jobs_started(0),
+      m_latest_submit_time(-std::numeric_limits<sim_time_t>::infinity()),
+      m_next_progressive_file(0),
       m_checkpoint_loaded(false), m_last_automatic_checkpoint_jobs(0),
       m_has_automatic_checkpoint(false),
       m_last_automatic_checkpoint_time(0.0),
@@ -300,7 +302,9 @@ BasicSimulation<TraceType>::BasicSimulation(Sim_Params params,
                                                 m_params.m_total_nodes)),
       m_next_capacity_change(0), m_current_capacity(m_params.m_total_nodes),
       m_capacity_area(0.0), m_capacity_area_time(0.0), m_jobs_completed(0),
-      m_jobs_submitted(0), m_jobs_started(0), m_next_progressive_file(0),
+      m_jobs_submitted(0), m_jobs_started(0),
+      m_latest_submit_time(-std::numeric_limits<sim_time_t>::infinity()),
+      m_next_progressive_file(0),
       m_checkpoint_loaded(false), m_last_automatic_checkpoint_jobs(0),
       m_has_automatic_checkpoint(false),
       m_last_automatic_checkpoint_time(0.0),
@@ -323,7 +327,9 @@ BasicSimulation<TraceType>::BasicSimulation(
                                                 m_params.m_total_nodes)),
       m_next_capacity_change(0), m_current_capacity(m_params.m_total_nodes),
       m_capacity_area(0.0), m_capacity_area_time(0.0), m_jobs_completed(0),
-      m_jobs_submitted(0), m_jobs_started(0), m_next_progressive_file(0),
+      m_jobs_submitted(0), m_jobs_started(0),
+      m_latest_submit_time(-std::numeric_limits<sim_time_t>::infinity()),
+      m_next_progressive_file(0),
       m_checkpoint_loaded(false), m_last_automatic_checkpoint_jobs(0),
       m_has_automatic_checkpoint(false),
       m_last_automatic_checkpoint_time(0.0),
@@ -579,6 +585,7 @@ num_jobs_t BasicSimulation<TraceType>::initialize_trace(num_jobs_t max_jobs) {
   reset_capacity_schedule();
   m_jobs_submitted = 0;
   m_jobs_started = 0;
+  m_latest_submit_time = -std::numeric_limits<sim_time_t>::infinity();
   m_jobs_completed = 0;
   m_pre_start_jobs = 0;
   m_warm_resource_area = 0.0;
@@ -762,6 +769,7 @@ void BasicSimulation<TraceType>::run_progressive() {
     reset_capacity_schedule();
     m_jobs_submitted = 0;
     m_jobs_started = 0;
+    m_latest_submit_time = -std::numeric_limits<sim_time_t>::infinity();
     m_jobs_completed = 0;
     m_next_progressive_file = 0;
     m_last_automatic_checkpoint_jobs = 0;
@@ -1082,6 +1090,7 @@ void BasicSimulation<TraceType>::save_checkpoint(std::ostream &output) {
     writer.value(m_jobs_completed);
     writer.value(m_jobs_submitted);
     writer.value(m_jobs_started);
+    writer.value(m_latest_submit_time);
     writer.value(static_cast<std::uint64_t>(m_next_progressive_file));
     writer.value(m_last_automatic_checkpoint_jobs);
     writer.value(m_has_automatic_checkpoint);
@@ -1389,6 +1398,7 @@ void BasicSimulation<TraceType>::load_checkpoint(std::istream &input) {
     m_jobs_completed = reader.value<num_jobs_t>();
     m_jobs_submitted = reader.value<num_jobs_t>();
     m_jobs_started = reader.value<num_jobs_t>();
+    m_latest_submit_time = reader.value<sim_time_t>();
     m_next_progressive_file = reader.count();
     if (m_next_progressive_file > m_params.m_infile_list_parsed.size()) {
       throw std::runtime_error(
@@ -1796,6 +1806,16 @@ job_no_t BasicSimulation<TraceType>::append_job(sim_time_t submit_time,
         std::to_string(submit_time) +
         " but current_time=" + std::to_string(m_current_time));
   }
+  if (submit_time < m_latest_submit_time) {
+    // The wait queues release arrivals in insertion order, so this job
+    // would silently wait until the later job already queued ahead of it
+    // arrives. Reject it, matching append_jobs()' ordering requirement.
+    throw std::invalid_argument(
+        "Cannot append job with submit_time=" + std::to_string(submit_time) +
+        " earlier than an already appended job's submit_time=" +
+        std::to_string(m_latest_submit_time) +
+        "; append jobs in non-decreasing submit_time order");
+  }
   const timeout_t stored_limit = checked_streaming_limit(limit_time);
   if (actual_run_time &&
       (!std::isfinite(*actual_run_time) || *actual_run_time <= 0.0 ||
@@ -1856,6 +1876,14 @@ std::vector<job_no_t> BasicSimulation<TraceType>::append_jobs(
           std::to_string(i) +
           " has submit_time=" + std::to_string(requests[i].submit_time) +
           " but current_time=" + std::to_string(m_current_time));
+    }
+    if (requests[i].submit_time < m_latest_submit_time) {
+      throw std::invalid_argument(
+          "Cannot append request " + std::to_string(i) + " with submit_time=" +
+          std::to_string(requests[i].submit_time) +
+          " earlier than an already appended job's submit_time=" +
+          std::to_string(m_latest_submit_time) +
+          "; append jobs in non-decreasing submit_time order");
     }
     const timeout_t stored_limit =
         checked_streaming_limit(requests[i].limit_time);
@@ -2078,6 +2106,7 @@ void BasicSimulation<TraceType>::submit_job(job_no_t job_idx,
 
   m_scheduler->insert_job(job_idx, submit_time, run_time_estimate, nodes);
   ++m_pending_queue_arrivals[submit_time];
+  m_latest_submit_time = std::max(m_latest_submit_time, submit_time);
   // Counted here, after the scheduler accepted it, so rejected jobs above
   // are excluded. Starts are counted separately in m_jobs_started.
   m_jobs_submitted++;

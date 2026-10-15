@@ -98,7 +98,7 @@ Their scheduling semantics are documented in
 |---|---|
 | `run()` | Run a configured batch trace to completion. |
 | `initialize_trace(max_jobs=0)` | Load the configured trace and return the number loaded. |
-| `append_job(submit_time, num_nodes, queue, limit_time, actual_run_time=None)` | Append and enqueue one live job; return its ID. The limit must be a positive whole number of seconds; a known runtime must be positive and no greater than the limit. |
+| `append_job(submit_time, num_nodes, queue, limit_time, actual_run_time=None)` | Append and enqueue one live job; return its ID. Jobs must be appended in non-decreasing `submit_time` order; the limit must be a positive whole number of seconds; a known runtime must be positive and no greater than the limit. |
 | `append_jobs(requests)` | Atomically append and enqueue ordered `JobAppendRequest` values; return their IDs. |
 | `get_job_statuses(job_idxs)` | Return lifecycle and timing snapshots for appended job IDs. |
 | `advance_to(target_time)` | Process events at or before the target. |

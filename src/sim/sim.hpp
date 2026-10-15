@@ -89,6 +89,11 @@ protected:
   num_jobs_t m_jobs_completed;
   num_jobs_t m_jobs_submitted; ///< Jobs accepted into the wait queue.
   num_jobs_t m_jobs_started;   ///< Jobs that began execution.
+  /// Latest submit time accepted so far. The wait queues release
+  /// arrivals in insertion order, so a later append with an earlier
+  /// submit time would be held until this time; such appends are
+  /// rejected instead.
+  sim_time_t m_latest_submit_time;
   /// Next progressive input file; advanced once its jobs are fully admitted.
   size_t m_next_progressive_file;
   /// True after load_checkpoint() restores runnable state.
@@ -259,7 +264,8 @@ public:
    * already present in m_data). Adds the job to the store and immediately
    * enqueues it for scheduling.
    *
-   * @param[in] submit_time Arrival time, which must be >= current time.
+   * @param[in] submit_time Arrival time, which must be >= current time and
+   *        >= the submit time of every job appended before it.
    * @param[in] num_nodes Number of nodes the job requests.
    * @param[in] queue Numeric queue ID by default (for example, "1" for the
    * default Queue1), or a queue name such as "pbatch" when built with
@@ -269,8 +275,9 @@ public:
    *        limit_time as the streaming execution duration.
    * @return New Trace job identifier as job_no_t.
    * @throws std::invalid_argument if limit_time is not a positive,
-   *         representable whole number of seconds, or if actual_run_time is
-   *         non-positive, non-finite, or greater than limit_time.
+   *         representable whole number of seconds, if actual_run_time is
+   *         non-positive, non-finite, or greater than limit_time, or if
+   *         submit_time is earlier than an already appended job's.
    * @see submit_job()
    * @see SchedulerBase::insert_job()
    */
