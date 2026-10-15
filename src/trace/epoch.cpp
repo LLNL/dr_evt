@@ -130,11 +130,13 @@ parse_time_with_timezone(const std::string &time_str) {
   // Find timezone offset (format: ±HH:MM or Z)
   std::string tz_offset = "+00:00";
   std::string time_part = time_str;
+  bool has_explicit_offset = false;
 
   // Look for 'Z' (UTC) or ±HH:MM at the end
   size_t tz_pos = time_str.find_last_of("+-Z");
   if (tz_pos != std::string::npos && tz_pos > 10) {
     // Found timezone
+    has_explicit_offset = true;
     tz_offset = time_str.substr(tz_pos);
     time_part = time_str.substr(0, tz_pos);
 
@@ -167,12 +169,20 @@ parse_time_with_timezone(const std::string &time_str) {
     frac = static_cast<float>(std::atof(frac_str.c_str()));
   }
 
-  // Convert to time_t (interprets as local time)
-  std::time_t local_time = std::mktime(&t);
-
-  // Adjust for timezone offset to get UTC
-  int offset_seconds = parse_timezone_offset(tz_offset);
-  std::time_t utc_time = local_time - offset_seconds;
+  std::time_t utc_time;
+  if (has_explicit_offset) {
+    // The string states its own offset, so the wall-clock fields are
+    // relative to that offset and the process timezone must not take
+    // part. Convert the fields as UTC and subtract the stated offset.
+    // Using mktime() here applied the process timezone a second time,
+    // shifting every offset-bearing timestamp by the local UTC offset
+    // (8 hours with the default America/Los_Angeles in January).
+    utc_time = timegm(&t) - parse_timezone_offset(tz_offset);
+  } else {
+    // No offset in the string: interpret the wall-clock fields in the
+    // process timezone, which Data_Columns::init() sets from --timezone.
+    utc_time = std::mktime(&t);
+  }
 
   return std::make_pair(std::make_pair(utc_time, frac), tz_offset);
 }
