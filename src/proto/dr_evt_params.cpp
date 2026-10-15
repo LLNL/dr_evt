@@ -61,7 +61,15 @@ set_sim_options(const dr_evt_proto::DR_EVT_Params::Simulation_Params &cfg,
     // plain assignment above, not before.
     sp.set_infile_list(cfg.infile_list());
   }
-  sp.set_outfile(cfg.outfile());
+  // Only apply an explicit outfile. set_outfile() derives a default from
+  // m_infile when given an empty name, and the positional trace file has
+  // not been applied yet at this point of CLI parsing, so the default
+  // would become "sim_out.txt" instead of "<trace stem>.out".
+  // Sim_Params::getopt() calls set_outfile(m_outfile) once the input file
+  // is final, which derives the name correctly when none was given.
+  if (!cfg.outfile().empty()) {
+    sp.set_outfile(cfg.outfile());
+  }
 
   sp.m_redis_uri = cfg.redis_uri();
   sp.m_redis_key_prefix = cfg.redis_key_prefix();

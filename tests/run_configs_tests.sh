@@ -396,6 +396,21 @@ else
     echo "  ✗ an unreadable config file was accepted or misdiagnosed"
     FAIL=$((FAIL + 1))
 fi
+# Test 14: --config must not change the default output name. set_outfile()
+# used to run inside the config reader before the positional trace file was
+# applied, so an empty outfile derived "sim_out.txt" instead of "<stem>.out".
+echo "Test 14: default output name is unchanged by --config"
+NAME_DIR="$TEST_WORK_DIR/outname"; mkdir -p "$NAME_DIR"
+cp "$TEST_TRACE" "$NAME_DIR/jobs.csv"
+printf "verbose: false\n" > "$NAME_DIR/empty.pb"
+( cd "$NAME_DIR" && "$SIMULATOR" jobs.csv --config empty.pb > run.log 2>&1 )
+if [ -f "$NAME_DIR/jobs.out" ] && [ ! -f "$NAME_DIR/sim_out.txt" ]; then
+    echo "  ✓ output written to jobs.out with --config"
+    PASS=$((PASS + 1))
+else
+    echo "  ✗ expected jobs.out; found: $(ls "$NAME_DIR")"
+    FAIL=$((FAIL + 1))
+fi
 echo ""
 echo "=========================================="
 echo "Results: $PASS passed, $FAIL failed"

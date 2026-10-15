@@ -246,7 +246,7 @@ jobs:
         id: config
         run: |
           echo "========================================"
-          echo "Running Config Tests (13 tests)"
+          echo "Running Config Tests (14 tests)"
           echo "========================================"
           ./tests/run_configs_tests.sh
 
@@ -348,7 +348,7 @@ jobs:
           echo "  Replay (5 tests): ${{ steps.replay.outcome }}"
           echo "  Resource History (5 tests): ${{ steps.resource-history.outcome }}"
           echo "  Job Store (6 tests): ${{ steps.job-store.outcome }}"
-          echo "  Config (13 tests): ${{ steps.config.outcome }}"
+          echo "  Config (14 tests): ${{ steps.config.outcome }}"
           echo "  CTest (17 native + trace tools + MPI when available): ${{ steps.core-ctest.outcome }}"
           echo "  Python API (19 tests): ${{ steps.python-api.outcome }}"
           echo "  Market Package (12 tests): ${{ steps.market-package.outcome }}"
