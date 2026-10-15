@@ -325,6 +325,60 @@ fi
 
 echo ""
 
+# Test 6: low-tail normal samples are floored at 1 second, not mapped to
+# time_limit. Clamping to 0 used to be read back as "unset" at job start
+# and replaced by the full limit, so with mean = sd = 0.5 * limit about
+# 16% of jobs (the <= 0 tail) ran their whole limit on top of the ~16%
+# genuinely capped there.
+# ------------------------------------------------------------------------
+
+echo "--- Test 6: low-tail normal samples floored at 1 s, not time_limit ---"
+
+FLOOR_OUT="$TEST_WORK_DIR/normal_floor.csv"
+"$SIMULATOR" "$LARGE_TRACE" \
+    --priority_policy fcfs \
+    --total_nodes 500 \
+    --trace_format simple \
+    --timestamp_format epoch \
+    --run_time_mode distribution \
+    --run_time_distribution normal \
+    --run_time_scale 0.5 \
+    --run_time_stddev 0.5 \
+    --seed 7 \
+    --backfill_policy easy \
+    --outfile "$FLOOR_OUT" \
+    > /dev/null 2>&1
+
+if "$PYTHON_BIN" - "$FLOOR_OUT" <<'PY'
+import csv, sys
+at_limit = at_floor = below_floor = total = 0
+with open(sys.argv[1]) as f:
+    for row in csv.DictReader(f):
+        begin = float(row['begin_time']); end = float(row['end_time'])
+        limit = float(row['time_limit'])
+        if begin < -1e18:
+            continue
+        run = end - begin; total += 1
+        if run >= limit: at_limit += 1
+        if run < 1.0: below_floor += 1
+        if abs(run - 1.0) < 1e-9: at_floor += 1
+share_limit = at_limit / total; share_floor = at_floor / total
+print(f"  {total} jobs: {share_limit:.1%} at time_limit, "
+      f"{share_floor:.1%} at the 1 s floor, {below_floor} below it")
+# Expected ~16% at the limit (upper tail). The old behaviour doubled it.
+ok = below_floor == 0 and share_limit < 0.25 and share_floor > 0.05
+sys.exit(0 if ok else 1)
+PY
+then
+    echo "✓ PASS: low-tail samples run for 1 s instead of the full limit"
+    PASS=$((PASS + 1))
+else
+    echo "✗ FAIL: low-tail samples still map to time_limit or run below 1 s"
+    FAIL=$((FAIL + 1))
+fi
+
+echo ""
+
 echo "=========================================="
 echo "Results: $PASS passed, $FAIL failed"
 echo "=========================================="

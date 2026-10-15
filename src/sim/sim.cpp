@@ -899,6 +899,14 @@ tdiff_t BasicSimulation<TraceType>::sample_run_time(tdiff_t time_limit,
     return 0.0;
   }
 
+  // Lower bound for a sampled run time. A job must run for a positive
+  // duration: Trace::insert_job() treats a stored actual_run_time <= 0 as
+  // "not set" and substitutes the full time_limit, so clamping a low-tail
+  // sample to 0 used to map it to the opposite extreme (about 16% of jobs
+  // ran their whole limit with scale = stddev = 0.5). One second is the
+  // trace format's own resolution.
+  const double min_run_time = std::min(1.0, time_limit);
+
   switch (dist) {
   case DistributionType::NORMAL: {
     double mean = time_limit * scale;
@@ -909,16 +917,17 @@ tdiff_t BasicSimulation<TraceType>::sample_run_time(tdiff_t time_limit,
     // it can never actually run longer than that. Cap here so a
     // wide-tailed sample can't silently let a job run past its own
     // limit, which would diverge from real system behavior.
-    return std::min(time_limit, std::max(0.0, run_time));
+    return std::min(time_limit, std::max(min_run_time, run_time));
   }
 
   case DistributionType::LOGNORMAL: {
     double mu = std::log(time_limit * scale);
     double sigma = stddev;
     std::lognormal_distribution<double> lognormal_dist(mu, sigma);
-    // Always >= 0 by construction; still cap at time_limit for the
-    // same reason as NORMAL above - a real job cannot run past it.
-    return std::min(time_limit, m_rng.sample(lognormal_dist));
+    // Positive by construction but can underflow toward 0; apply the
+    // same floor, and cap at time_limit for the same reason as NORMAL.
+    return std::min(time_limit,
+                    std::max(min_run_time, m_rng.sample(lognormal_dist)));
   }
 
   case DistributionType::UNIFORM: {
@@ -931,7 +940,7 @@ tdiff_t BasicSimulation<TraceType>::sample_run_time(tdiff_t time_limit,
     // direct function of the caller's own scale/stddev choice -
     // exceeding time_limit here only happens if the caller
     // deliberately set scale + stddev > 1.0.
-    return std::max(0.0, m_rng.sample(uniform_dist));
+    return std::max(min_run_time, m_rng.sample(uniform_dist));
   }
 
   default:
