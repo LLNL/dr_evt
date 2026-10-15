@@ -61,7 +61,19 @@ timeout_t checked_streaming_limit(tdiff_t limit_time) {
 
 constexpr std::array<char, 8> checkpoint_magic{'D', 'R', 'E', 'V',
                                                'T', 'C', 'K', 'P'};
-constexpr std::uint32_t checkpoint_version = 8; // 8: adds m_latest_submit_time
+constexpr std::uint32_t checkpoint_version = 9; // 9: SWF trace kind/records
+
+/// Trace policy identifier stored in a checkpoint so a file written by one
+/// trace type is not restored into another.
+template <typename TraceType> constexpr std::uint8_t checkpoint_trace_kind() {
+  if constexpr (std::is_same_v<TraceType, PconTrace>) {
+    return 1u;
+  } else if constexpr (std::is_same_v<TraceType, SwfTrace>) {
+    return 2u;
+  } else {
+    return 0u;
+  }
+}
 constexpr std::uint64_t checkpoint_collection_limit = 100000000;
 constexpr std::uint64_t checkpoint_string_limit = 64 * 1024 * 1024;
 
@@ -280,6 +292,7 @@ BasicSimulation<TraceType>::BasicSimulation(Sim_Params params)
       m_pre_start_jobs(0), m_warm_resource_area(0.0),
       m_warm_resource_end(0.0), m_rng(m_params.m_seed), m_queue_length_sum(0),
       m_queue_length_samples(0), m_queue_length_peak(0) {
+  m_trace.set_cores_per_node(m_params.m_cores_per_node);
   reset_capacity_schedule();
 }
 
@@ -311,6 +324,7 @@ BasicSimulation<TraceType>::BasicSimulation(Sim_Params params,
       m_pre_start_jobs(0), m_warm_resource_area(0.0),
       m_warm_resource_end(0.0), m_rng(m_params.m_seed), m_queue_length_sum(0),
       m_queue_length_samples(0), m_queue_length_peak(0) {
+  m_trace.set_cores_per_node(m_params.m_cores_per_node);
   reset_capacity_schedule();
 }
 
@@ -339,6 +353,7 @@ BasicSimulation<TraceType>::BasicSimulation(
   if (!m_scheduler) {
     throw std::invalid_argument("custom scheduler must not be null");
   }
+  m_trace.set_cores_per_node(m_params.m_cores_per_node);
   reset_capacity_schedule();
 }
 
@@ -986,7 +1001,8 @@ void BasicSimulation<TraceType>::flush_completed_jobs() {
 template <typename TraceType>
 void BasicSimulation<TraceType>::save_checkpoint(std::ostream &output) {
   if constexpr (std::is_same_v<TraceType, Trace> ||
-                std::is_same_v<TraceType, PconTrace>) {
+                std::is_same_v<TraceType, PconTrace> ||
+                std::is_same_v<TraceType, SwfTrace>) {
     if (m_custom_scheduler != nullptr &&
         typeid(*m_custom_scheduler) != typeid(CustomFCFSScheduler)) {
       throw std::logic_error(
@@ -1044,7 +1060,7 @@ void BasicSimulation<TraceType>::save_checkpoint(std::ostream &output) {
     CheckpointWriter writer(output);
     writer.bytes(checkpoint_magic.data(), checkpoint_magic.size());
     writer.value(checkpoint_version);
-    writer.value(std::is_same_v<TraceType, PconTrace>);
+    writer.value(checkpoint_trace_kind<TraceType>());
     writer.value(static_cast<std::uint32_t>(
         sizeof(typename TraceType::policy_type::record_type)));
 
@@ -1069,6 +1085,7 @@ void BasicSimulation<TraceType>::save_checkpoint(std::ostream &output) {
     writer.string(m_params.m_redis_key_prefix);
     writer.value(m_params.m_msec_output);
     writer.value(m_params.m_checkpoint_interval_jobs);
+    writer.value(m_params.m_cores_per_node);
     writer.value(static_cast<std::uint64_t>(
         m_params.m_infile_list_parsed.size()));
     for (const auto &filename : m_params.m_infile_list_parsed) {
@@ -1208,6 +1225,9 @@ void BasicSimulation<TraceType>::save_checkpoint(std::ostream &output) {
         writer.value(job.pcon().avgpcon);
         writer.value(job.pcon().minpcon);
         writer.value(job.pcon().maxpcon);
+      } else if constexpr (std::is_same_v<TraceType, SwfTrace>) {
+        writer.value(job.swf_job_number());
+        writer.value(job.swf_queue());
       }
     }
 
@@ -1277,7 +1297,8 @@ void BasicSimulation<TraceType>::save_checkpoint(std::ostream &output) {
     }
   } else {
     static_assert(std::is_same_v<TraceType, Trace> ||
-                      std::is_same_v<TraceType, PconTrace>,
+                      std::is_same_v<TraceType, PconTrace> ||
+                      std::is_same_v<TraceType, SwfTrace>,
                   "checkpoint serialization is not defined for this trace");
   }
 }
@@ -1301,7 +1322,8 @@ void BasicSimulation<TraceType>::save_checkpoint(const std::string &filename) {
 template <typename TraceType>
 void BasicSimulation<TraceType>::load_checkpoint(std::istream &input) {
   if constexpr (std::is_same_v<TraceType, Trace> ||
-                std::is_same_v<TraceType, PconTrace>) {
+                std::is_same_v<TraceType, PconTrace> ||
+                std::is_same_v<TraceType, SwfTrace>) {
     if (m_custom_scheduler != nullptr &&
         typeid(*m_custom_scheduler) != typeid(CustomFCFSScheduler)) {
       throw std::logic_error(
@@ -1316,8 +1338,8 @@ void BasicSimulation<TraceType>::load_checkpoint(std::istream &input) {
     }
     require_checkpoint_match(reader.value<std::uint32_t>(), checkpoint_version,
                              "format version");
-    require_checkpoint_match(reader.value<bool>(),
-                             std::is_same_v<TraceType, PconTrace>,
+    require_checkpoint_match(reader.value<std::uint8_t>(),
+                             checkpoint_trace_kind<TraceType>(),
                              "trace type");
     require_checkpoint_match(reader.value<std::uint32_t>(),
                              static_cast<std::uint32_t>(sizeof(
@@ -1364,6 +1386,9 @@ void BasicSimulation<TraceType>::load_checkpoint(std::istream &input) {
     require_checkpoint_match(reader.value<num_jobs_t>(),
                              m_params.m_checkpoint_interval_jobs,
                              "checkpoint_interval_jobs");
+    require_checkpoint_match(reader.value<unsigned>(),
+                             m_params.m_cores_per_node,
+                             "SWF cores per node");
     const size_t progressive_file_count = reader.count();
     require_checkpoint_match(progressive_file_count,
                              m_params.m_infile_list_parsed.size(),
@@ -1565,6 +1590,10 @@ void BasicSimulation<TraceType>::load_checkpoint(std::istream &input) {
         const Pcon_Values pcon{reader.value<double>(), reader.value<double>(),
                                reader.value<double>()};
         m_trace.m_data.push_back(Pcon_Job_Record(std::move(job), pcon));
+      } else if constexpr (std::is_same_v<TraceType, SwfTrace>) {
+        const auto swf_no = reader.value<std::uint32_t>();
+        const auto swf_q = reader.value<std::uint8_t>();
+        m_trace.m_data.push_back(Swf_Job_Record(std::move(job), swf_no, swf_q));
       } else {
         m_trace.m_data.push_back(std::move(job));
       }
@@ -1740,7 +1769,8 @@ void BasicSimulation<TraceType>::load_checkpoint(std::istream &input) {
     }
   } else {
     static_assert(std::is_same_v<TraceType, Trace> ||
-                      std::is_same_v<TraceType, PconTrace>,
+                      std::is_same_v<TraceType, PconTrace> ||
+                      std::is_same_v<TraceType, SwfTrace>,
                   "checkpoint deserialization is not defined for this trace");
   }
 }
@@ -2688,5 +2718,6 @@ BasicSimulation<TraceType>::get_statistics() const {
 
 template class BasicSimulation<Trace>;
 template class BasicSimulation<PconTrace>;
+template class BasicSimulation<SwfTrace>;
 
 } // namespace dr_evt

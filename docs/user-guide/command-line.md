@@ -29,8 +29,9 @@ Complete reference for all DR_EVT command-line options for the `simulator` binar
 | Storage | `--job_flush_interval RECORDS` | Set the departure count between opportunistic job-output flushes. |
 | Storage | `-m, --check_memory_pressure FRACTION` | Guard job-store growth using available memory. |
 | Storage | `-H, --resource_history_capacity SIZE` | Set resource-history capacity. |
-| Trace | `--trace_type TYPE` | Select the standard or experimental record model. |
+| Trace | `--trace_type TYPE` | Select the record model: `standard`, `pcon`, or `swf`. |
 | Trace | `-f, --trace_format FORMAT` | Select the input trace schema. |
+| Trace | `--cores_per_node N` | SWF only: processors per node when converting processor counts to nodes. |
 | Trace | `-T, --timestamp_format FORMAT` | Set the retained timestamp-format compatibility value; input is auto-detected and output remains numeric. |
 | Trace | `-z, --timezone TIMEZONE` | Interpret calendar timestamps that omit an explicit offset. |
 | Trace | `-M, --msec_output` | Preserve millisecond precision in output timestamps. |
@@ -143,7 +144,8 @@ output is enabled.
 ### `-n, --total_nodes COUNT`
 Total number of nodes in the simulated cluster.
 
-**Default:** 795
+**Default:** 795, a historical Lassen value. For SWF input the default is
+the header's `MaxNodes` when present; a note on stderr says which was used.
 
 **Example:**
 ```bash
@@ -395,7 +397,9 @@ Select the job/resource data model independently of the input trace format.
 
 **Options:**
 - `standard` - Standard DR_EVT job and resource records (default)
-- `pcon` - Experimental records carrying `avgpcon`, `minpcon`, and `maxpcon`
+- `pcon` - Records carrying `avgpcon`, `minpcon`, and `maxpcon` power values
+- `swf` - Standard Workload Format input (Parallel Workloads Archive). Implies
+  `--trace_format swf`; see [SWF Format](trace-formats.md#swf-format)
 
 **Default:** `standard`
 
@@ -410,12 +414,26 @@ ${CMAKE_INSTALL_PREFIX}/bin/simulator traces/pcon.csv \
     --timestamp_format epoch
 ```
 
+### `--cores_per_node N`
+SWF input only. Divisor used to convert a record's allocated processors to
+the node count the simulator schedules: `num_nodes = ceil(processors / N)`.
+
+**Default:** `0`, meaning derive `N` from the SWF header as
+`MaxProcs / MaxNodes` when both are present, else `1`.
+
+**Example:**
+```bash
+${CMAKE_INSTALL_PREFIX}/bin/simulator traces/CTC-SP2-1996-3.1-cln.swf \
+    --trace_type swf --cores_per_node 1 --total_nodes 338
+```
+
 ### `-f, --trace_format FORMAT`
 Input trace format.
 
 **Options:**
 - `simple` - Simple CSV format (minimal columns)
 - `lassen` - Lassen HPC format (many metadata columns)
+- `swf` - Standard Workload Format; equivalent to `--trace_type swf`
 
 **Default:** `simple`
 

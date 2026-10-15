@@ -51,7 +51,8 @@ enum class CircularOverflowPolicy {
  */
 enum class TraceType {
   STANDARD, ///< Standard job/resource records (default).
-  PCON      ///< Experimental inline Pcon job/resource records.
+  PCON,     ///< Pcon job/resource records with inline power values.
+  SWF       ///< Standard Workload Format input (Parallel Workloads Archive).
 };
 
 /** @brief Complete configuration for a Simulation run or streaming session. */
@@ -119,6 +120,9 @@ public:
   bool m_is_jobs_set;
   /// Whether m_max_time was explicitly configured.
   bool m_is_time_set;
+  /// Whether -n/--total_nodes (or the config's total_nodes) was given;
+  /// SWF input defaults to the header's MaxNodes otherwise.
+  bool m_is_nodes_set;
 
   /// Backfill behavior applied by the scheduler.
   BackfillPolicy m_backfill_policy;
@@ -155,8 +159,13 @@ public:
   num_nodes_t m_total_nodes;
   /// Optional CSV of time-varying capacity change points.
   std::string m_capacity_schedule;
-  /// Job-trace data model: standard or experimental Pcon.
+  /// Job-trace data model: standard, Pcon, or SWF (see TraceType).
   TraceType m_trace_type;
+  /// SWF only: processors per node used to convert allocated processors to
+  /// nodes. 0 is not a divisor; it means "derive from the file header"
+  /// (MaxProcs / MaxNodes, else 1), the same convention as the 0 defaults
+  /// of the capacity options.
+  unsigned m_cores_per_node;
   /// Input trace format name, such as "simple" or "lassen".
   std::string m_trace_format;
   /// Retained epoch/iso compatibility value; file input is auto-detected.

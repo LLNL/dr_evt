@@ -66,6 +66,8 @@ int main(int argc, char **argv) {
     // Create and run simulation
     if (cfg.m_trace_type == dr_evt::TraceType::PCON) {
       run_simulation<dr_evt::PconSimulation>(cfg);
+    } else if (cfg.m_trace_type == dr_evt::TraceType::SWF) {
+      run_simulation<dr_evt::SwfSimulation>(cfg);
     } else {
       run_simulation<dr_evt::Simulation>(cfg);
     }

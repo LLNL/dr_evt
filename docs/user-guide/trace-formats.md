@@ -9,7 +9,8 @@ defaults are in [Command-Line Options](command-line.md#trace-format-options).
 
 The `standard` data model contains scheduling and resource fields. The `pcon`
 model adds per-job `avgpcon`, `minpcon`, and `maxpcon` values and corresponding
-resource-trace columns.
+resource-trace columns. The `swf` model reads the Standard Workload Format
+directly; see [SWF Format](#swf-format).
 
 The first data row of each input file is used to detect Unix epoch seconds or
 calendar timestamps, and that encoding is then used for every timestamp in
@@ -152,6 +153,53 @@ For implementation details, see
 - Column 29: `job_submit_time`
 - Column 30: `queue`
 - Column 32: `time_limit`
+
+### SWF Format
+
+The [Standard Workload Format](https://www.cs.huji.ac.il/labs/parallel/workload/swf.html)
+used by the Parallel Workloads Archive is read natively with
+`--trace_type swf` (equivalently `--trace_format swf`). SWF files have no
+column header: lines beginning with `;` carry metadata, and every other line
+holds 18 whitespace-separated numeric fields with `-1` for a missing value.
+
+Header keys honoured:
+- `UnixStartTime`: added to every relative submit time, so output timestamps
+  are absolute epochs. Without it, times stay relative to the trace start.
+- `MaxProcs` and `MaxNodes`: when both are present, the default
+  processors-per-node divisor is `MaxProcs / MaxNodes`; otherwise `1`.
+  `--cores_per_node N` overrides the header. Only the leading number of a
+  header value is read, so annotations such as
+  `; MaxNodes: 338 (batch partition; 512 total)` are accepted.
+
+Field mapping (1-based SWF field numbers):
+
+| SWF field | Simulator value |
+|---|---|
+| 2 submit time | `job_submit_time` = `UnixStartTime` + field 2 |
+| 5 allocated processors | `num_nodes` = ceil(field 5 / cores_per_node) |
+| 9 requested time | `time_limit`; when missing (`-1`) the run time (field 4) is used |
+| 4 run time | `actual_run_time`, so `--run_time_mode actual` replays recorded durations; a run time longer than the requested time is truncated to it (the simulator kills jobs at their limit) and counted in the summary line |
+| 1 job number, 15 queue | kept on the record for analysis; the scheduler's queue id is always `1` |
+
+Records whose allocated processors or run time are `<= 0` (for example jobs
+cancelled before they started) are skipped and counted; the loader prints
+one summary line, `SWF: loaded X records, skipped Y ..., cores_per_node=C`.
+The status field (11) is not consulted. Records are sorted by submit time
+after loading, so ties and occasional out-of-order lines in archive files are
+tolerated. SWF describes submissions only, so it always runs in simulation
+mode; replay and warm start need `begin_time`/`end_time` and therefore a
+simple-format trace.
+
+When `--total_nodes` is not given, the header's `MaxNodes` is used as the
+machine size (a note on stderr says so); without `MaxNodes` the built-in
+default applies. An explicit `--total_nodes` always wins. A job whose node
+count exceeds the machine size is rejected at submission, as for any format,
+so keep `--total_nodes` and `--cores_per_node` consistent with the machine the
+trace was recorded on.
+
+SWF input is available to the command-line simulator and Protobuf
+configuration files. The Python bindings and gRPC server use the standard
+data model only, so convert SWF to simple-format CSV for those paths.
 
 ## See Also
 

@@ -341,6 +341,10 @@ public:
    * reset the interval. The interval never changes job eligibility: only the
    * completed contiguous front prefix can be written and reclaimed.
    */
+  /** @brief Processors-per-node divisor for SWF input; 0 derives it from the
+   *  file header. No effect on other formats. */
+  void set_cores_per_node(unsigned cores) { m_dcols.set_cores_per_node(cores); }
+
   void set_job_flush_interval(size_t interval) {
     m_job_flush_interval = interval;
   }
@@ -924,13 +928,16 @@ protected:
   }
 };
 
-/// Experimental trace carrying Pcon values in both job and resource records.
+/// Pcon trace: carries power values in both job and resource records.
 using PconTrace = BasicTrace<Pcon_Trace_Policy>;
 /// Normal build: existing compact record layouts and behavior are unchanged.
 using Trace = BasicTrace<Standard_Trace_Policy>;
+/// Standard Workload Format input (see Swf_Trace_Policy).
+using SwfTrace = BasicTrace<Swf_Trace_Policy>;
 
 extern template class BasicTrace<Standard_Trace_Policy>;
 extern template class BasicTrace<Pcon_Trace_Policy>;
+extern template class BasicTrace<Swf_Trace_Policy>;
 
 /**@}*/
 } // end of namespace dr_evt

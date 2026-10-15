@@ -49,6 +49,7 @@ all registered with CTest:
 ./tests/run_warm_start_validation_tests.sh
 ./tests/run_max_time_tests.sh
 ./tests/run_cli_input_tests.sh
+./tests/run_swf_tests.sh
 ./tests/run_grpc_tests.sh
 ./tests/run_backfill_window_grpc_test.sh
 python3 tests/test_grpc_single_coordinator.py \
@@ -112,7 +113,8 @@ server; no pre-existing Redis service is used.
 | Trace tools | 3 | `test_trace_tools.py` via CTest | Capacity inference, simulator-format conversion, direct schedule loading, and warm-start boundary/output behavior |
 | Maximum time | 3 CLI cases | `run_max_time_tests.sh` | Inclusive cutoff behavior in simulation, replay, and warm-start execution |
 | Warm start | 1 native binary + 9 CLI cases | CTest (`test_warm_start`, `test_warm_start_validation`) | Boundary classification, two-stage execution, runtime modes, capacity transitions, policies/queues, accounting/output, numeric/ISO simulation-start times, zero-start replay, inclusive maximum time, per-file timestamp encoding, and invalid configurations |
-| Native CTest | 18, plus 1 with MPI | CTest | RNG and binary serialization, exact checkpoint/restart, trace policies, replay reclamation, custom scheduling, append/streaming APIs, maximum-time and warm-start coverage, capacity parsing, queue implementations, CLI dispatch, and command-line input selection; CTest also registers the Python trace-tools test |
+| SWF input | 8 CLI cases | `run_swf_tests.sh` (CTest `test_swf`) | Standard Workload Format parsing: equivalence with simple-format CSV, header-derived and overridden cores-per-node, MaxNodes as the default machine size, skipped records, malformed lines, and option consistency |
+| Native CTest | 19, plus 1 with MPI | CTest | RNG and binary serialization, exact checkpoint/restart, trace policies, replay reclamation, custom scheduling, append/streaming APIs, maximum-time and warm-start coverage, capacity parsing, queue implementations, CLI dispatch, command-line input selection, and SWF input; CTest also registers the Python trace-tools test |
 
 The gRPC portion of the append-job runner is skipped when gRPC support was not
 built. The backfill-window runner executes the same five-check gRPC test binary
@@ -126,6 +128,7 @@ CTest and focused-runner rows intentionally overlap.
 - `test_traces/unit/`: parsing and basic execution fixtures;
 - `test_traces/feature/`: policy, replay, and buffer fixtures;
 - `test_traces/tools/`: capacity-analysis and warm-start fixtures;
+- `test_traces/swf/`: Standard Workload Format fixtures and their CSV equivalents;
 - `test_traces/scale/`: larger workloads; and
 - `test_configs/`: Protobuf configuration fixtures.
 

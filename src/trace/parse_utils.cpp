@@ -206,6 +206,25 @@ std::string trim(const std::string &str, const std::string &whitespace) {
   return str.substr(i_beg, span);
 }
 
+std::vector<substr_pos_t> whitespace_separate(const std::string &str) {
+  std::vector<substr_pos_t> ret;
+  size_t i = 0ul;
+  while (i < str.size()) {
+    while (i < str.size() && (str[i] == ' ' || str[i] == '\t')) {
+      ++i;
+    }
+    if (i >= str.size()) {
+      break;
+    }
+    const size_t s = i;
+    while (i < str.size() && str[i] != ' ' && str[i] != '\t') {
+      ++i;
+    }
+    ret.emplace_back(s, i - s);
+  }
+  return ret;
+}
+
 std::vector<substr_pos_t> comma_separate(const std::string &str) {
   std::vector<substr_pos_t> ret;
   if (str.empty()) {

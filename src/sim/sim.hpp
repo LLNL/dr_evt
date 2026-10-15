@@ -796,9 +796,11 @@ protected:
 
 using Simulation = BasicSimulation<Trace>;
 using PconSimulation = BasicSimulation<PconTrace>;
+using SwfSimulation = BasicSimulation<SwfTrace>;
 
 extern template class BasicSimulation<Trace>;
 extern template class BasicSimulation<PconTrace>;
+extern template class BasicSimulation<SwfTrace>;
 
 /**@}*/
 } // end of namespace dr_evt

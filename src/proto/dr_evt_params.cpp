@@ -100,6 +100,7 @@ set_sim_options(const dr_evt_proto::DR_EVT_Params::Simulation_Params &cfg,
   // Scheduling parameters (0 means use default from Sim_Params constructor)
   if (cfg.total_nodes() > 0) {
     sp.m_total_nodes = cfg.total_nodes();
+    sp.m_is_nodes_set = true;
   }
   if (!cfg.capacity_schedule().empty()) {
     sp.m_capacity_schedule = cfg.capacity_schedule();
@@ -154,24 +155,37 @@ set_sim_options(const dr_evt_proto::DR_EVT_Params::Simulation_Params &cfg,
       sp.m_trace_type = TraceType::STANDARD;
     } else if (type == "pcon") {
       sp.m_trace_type = TraceType::PCON;
+    } else if (type == "swf") {
+      sp.m_trace_type = TraceType::SWF;
+      sp.m_trace_format = "swf";
     } else {
       throw std::runtime_error("Unknown trace_type in protobuf: " + type +
-                               " (valid: standard, pcon)");
+                               " (valid: standard, pcon, swf)");
     }
   } else {
     sp.m_trace_type = TraceType::STANDARD;
   }
 
-  // Trace format (options: "simple" or "lassen", default: "simple")
+  // Trace format (options: "simple", "lassen", or "swf"; default: "simple")
   if (!cfg.trace_format().empty()) {
     std::string format = cfg.trace_format();
     if (format == "simple" || format == "lassen") {
       sp.m_trace_format = format;
+    } else if (format == "swf") {
+      sp.m_trace_format = format;
+      sp.m_trace_type = TraceType::SWF;
     } else {
       throw std::runtime_error("Unknown trace_format in protobuf: " + format);
     }
-  } else {
+  } else if (sp.m_trace_type != TraceType::SWF) {
     sp.m_trace_format = "simple";
+  }
+  if ((sp.m_trace_type == TraceType::SWF) != (sp.m_trace_format == "swf")) {
+    throw std::runtime_error(
+        "trace_type swf and trace_format swf must be used together");
+  }
+  if (cfg.cores_per_node() > 0u) {
+    sp.m_cores_per_node = cfg.cores_per_node();
   }
 
   // Retained timestamp compatibility value (default: "epoch")

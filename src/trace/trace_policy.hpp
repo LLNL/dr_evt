@@ -6,7 +6,9 @@
  ******************************************************************************/
 
 /** @file trace_policy.hpp
- * @brief Compile-time storage policies for standard and experimental traces.
+ * @brief Compile-time storage policies: standard, Pcon, and SWF traces. Each
+ * policy names its record type and loader; add a new trace type as a new
+ * policy here, a TraceType value, and a dispatch case in src/sim.cpp.
  */
 
 #ifndef DR_EVT_TRACE_TRACE_POLICY_HPP
@@ -14,6 +16,7 @@
 
 #include "trace/job_record.hpp"
 #include <boost/circular_buffer.hpp>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -29,7 +32,7 @@ struct Pcon_Values {
 };
 
 /**
- * Experimental record stored by value. Inheritance lets the scheduling core
+ * Pcon record stored by value. Inheritance lets the scheduling core
  * continue to consume Job_Record references while the concrete buffer retains
  * the additional fields. No pointer or dynamically-sized payload is added to
  * an individual record.
@@ -131,6 +134,71 @@ struct Pcon_Trace_Policy {
 
 private:
   Pcon_Values m_current;
+};
+
+/**
+ * Record loaded from a Standard Workload Format (SWF) file. The scheduling
+ * core consumes it as a Job_Record; the SWF-specific identity fields are kept
+ * alongside by value, so no pointer or dynamic payload is added per record.
+ * The base queue is always Queue1 (the simulator's queue ids are semantic);
+ * the file's own queue number is preserved here for analysis.
+ */
+class Swf_Job_Record : public Job_Record {
+public:
+  using Job_Record::Job_Record;
+
+  Swf_Job_Record(Job_Record &&job, std::uint32_t swf_job_number,
+                 std::uint8_t swf_queue)
+      : Job_Record(std::move(job)), m_swf_job_number(swf_job_number),
+        m_swf_queue(swf_queue) {}
+
+  /// SWF field 1, the job number in the file.
+  std::uint32_t swf_job_number() const { return m_swf_job_number; }
+  /// SWF field 15, 0 when missing (-1) or above 255.
+  std::uint8_t swf_queue() const { return m_swf_queue; }
+
+private:
+  std::uint32_t m_swf_job_number = 0u;
+  std::uint8_t m_swf_queue = 0u;
+};
+
+/**
+ * Policy for Standard Workload Format input. Identical to the standard policy
+ * except that load_records() parses SWF directly: ';' header lines
+ * (UnixStartTime, MaxNodes, MaxProcs), 18 whitespace-separated fields, -1 for
+ * missing values, processors converted to nodes with a cores-per-node divisor.
+ */
+struct Swf_Trace_Policy {
+  using record_type = Swf_Job_Record;
+
+  /** @brief Read MaxNodes from an SWF file's ';' header without loading it.
+   *  @return The value, or 0 when the file or the key is absent. */
+  static unsigned header_max_nodes(const std::string &fname);
+
+  using job_store_type = boost::circular_buffer<record_type>;
+  using resource_sample_type = Standard_Resource_Sample;
+
+  static int load_records(const std::string &fname, const Data_Columns &dcols,
+                          std::vector<record_type> &records,
+                          num_jobs_t max_count);
+  static record_type make_record(const epoch_t &submit_time,
+                                 num_nodes_t num_nodes, job_queue_t queue,
+                                 timeout_t limit_time) {
+    return record_type(Job_Record(submit_time, num_nodes, queue, limit_time),
+                       0u, 0u);
+  }
+
+  static resource_sample_type sample(const epoch_t &time, num_nodes_t allocated,
+                                     num_nodes_t capacity) {
+    return {time, allocated, capacity};
+  }
+  static const char *resource_columns() { return ""; }
+  static std::string resource_values(const resource_sample_type &) {
+    return "";
+  }
+  void reset_runtime_state() {}
+  void on_start(const record_type &) {}
+  void on_finish(const record_type &) {}
 };
 
 } // namespace dr_evt

@@ -1,0 +1,11 @@
+; Version: 2.2
+; Computer: synthetic
+; UnixStartTime: 1000000000
+; MaxNodes: 4
+; MaxProcs: 16
+; TimeZoneString: UTC
+; Note: hand-written fixture for tests/run_swf_tests.sh. Rows 4 and 6 are
+; skipped (run time 0, processors -1); row 7 is out of submit order; rows 2
+; and 3 tie on submit time; row 2 has no requested time (-1).
+1 0 0 100 4 -1 -1 4 200 -1 1 1 1 1 1 1 -1 -1
+2 10 0 50 8 -1 -1 8 -1 -1 1 1 1 1 1 1 -1
