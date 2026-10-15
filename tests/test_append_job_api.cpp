@@ -231,6 +231,24 @@ void test_append_rejects_past_submit_time() {
   }
   assert(threw);
 
+  // Out-of-order appends are rejected too: the wait queue releases
+  // arrivals in insertion order, so a t=200 job appended after a t=300
+  // job would silently wait until t=300.
+  [[maybe_unused]] job_no_t j_late =
+      sim.append_job(300.0, 10, kTestQueueInput, 50);
+  threw = false;
+  try {
+    sim.append_job(200.0, 10, kTestQueueInput, 50);
+  } catch (const std::invalid_argument &) {
+    threw = true;
+  }
+  assert(threw);
+  // Equal submit times remain fine.
+  [[maybe_unused]] job_no_t j_same =
+      sim.append_job(300.0, 10, kTestQueueInput, 50);
+  std::cout << "  append_job(200) after append_job(300) rejected; equal time ok"
+            << std::endl;
+
   std::cout << "  PASSED" << std::endl;
 }
 
@@ -473,10 +491,20 @@ void test_exclusive_vs_inclusive() {
   assert(sim.get_nodes_in_use() == 10);
   std::cout << "  advance_to(0): START processed, 10 nodes" << std::endl;
 
+  // A second job that starts at t=2 and ends at t=5 lies strictly before
+  // the target, so run_until_exclusive(10) must process both of its events
+  // and leave the clock at t=5. A no-op implementation (which this once
+  // was) would leave the clock at 0 and never run the job.
+  [[maybe_unused]] job_no_t j1 = sim.append_job(2.0, 5, kTestQueueInput, 3);
+  // Two jobs accepted, one started so far: the counters must differ here.
+  assert(sim.get_statistics().jobs_submitted == 2);
+  assert(sim.get_statistics().jobs_started == 1);
   sim.run_until_exclusive(10.0);
+  assert(sim.get_current_time() == 5.0);
   assert(sim.get_nodes_in_use() == 10);
-  std::cout << "  run_until_exclusive(10): END not processed, still 10 nodes"
-            << std::endl;
+  assert(sim.get_statistics().jobs_completed == 1);
+  std::cout << "  run_until_exclusive(10): events at 2 and 5 processed, END"
+            << " at 10 not processed, still 10 nodes" << std::endl;
 
   sim.advance_to(10.0);
   assert(sim.get_nodes_in_use() == 0);

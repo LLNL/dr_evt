@@ -10,7 +10,9 @@
  */
 
 #include "params/trace_params.hpp"
+#include "trace/parse_utils.hpp"
 #include "utils/file.hpp"
+#include <cmath>
 #include <cstdlib>
 #include <getopt.h>
 #include <iostream>
@@ -38,7 +40,8 @@ static const struct option trace_longopts[] = {
 };
 
 Trace_Params::Trace_Params()
-    : m_max_jobs(10u), m_max_time(dr_evt::max_tstamp), m_datfile(), m_subfile(),
+    : m_max_jobs(10u), m_max_time(dr_evt::max_sim_time), m_datfile(),
+      m_subfile(),
       m_subsumfile(), m_resource_history_capacity(0),
       m_total_nodes(dr_evt::total_nodes), m_is_jobs_set(false),
       m_is_time_set(false) {}
@@ -53,6 +56,21 @@ bool Trace_Params::getopt(int &argc, char **&argv) {
     return false;
   }
 
+  // Parse an unsigned option value, rejecting a sign, trailing text, and
+  // values above the destination type. atoi() returned 0 on garbage and
+  // wrapped negatives; std::stoull() accepted a leading minus sign and
+  // threw uncaught exceptions on garbage.
+  auto parse_uint = [&](const char *name, unsigned long long max) {
+    try {
+      return parse_unsigned(optarg, max);
+    } catch (const std::invalid_argument &) {
+      std::cerr << "Error: " << name << " expects a non-negative integer no "
+                << "greater than " << max << ", got '" << optarg << "'"
+                << std::endl;
+      print_usage(argv[0], 1);
+      return 0ULL;
+    }
+  };
   while ((c = getopt_long(argc, argv, OPTIONS, trace_longopts, NULL)) != -1) {
     switch (c) {
     case 'd': /* --datfile */
@@ -65,7 +83,10 @@ bool Trace_Params::getopt(int &argc, char **&argv) {
       m_infile = std::string(optarg);
       break;
     case 'j': /* --max_jobs */
-      m_max_jobs = static_cast<dr_evt::num_jobs_t>(atoi(optarg));
+      // The type maximum is the internal "unlimited" sentinel; stop one below.
+      m_max_jobs = static_cast<dr_evt::num_jobs_t>(parse_uint(
+          "--max_jobs",
+          std::numeric_limits<dr_evt::num_jobs_t>::max() - 1));
       m_is_jobs_set = true;
       break;
     case 'o': /* --outfile */
@@ -78,17 +99,27 @@ bool Trace_Params::getopt(int &argc, char **&argv) {
       m_subsumfile = std::string(optarg);
       break;
     case 't': /* --max_time */
-      m_max_time = optarg;
+      // Same parsing and validation as the simulator's --max_time.
+      try {
+        m_max_time = static_cast<dr_evt::sim_time_t>(std::stod(optarg));
+      } catch (const std::exception &) {
+        std::cerr << "Error: --max_time expects a number, got '" << optarg
+                  << "'" << std::endl;
+        print_usage(argv[0], 1);
+        return false;
+      }
       m_is_time_set = true;
       break;
     case 'n': /* --total_nodes */
-      m_total_nodes = static_cast<dr_evt::num_nodes_t>(atoi(optarg));
+      m_total_nodes = static_cast<dr_evt::num_nodes_t>(parse_uint(
+          "--total_nodes", std::numeric_limits<dr_evt::num_nodes_t>::max()));
       break;
     case 'r': /* --resource_trace */
       m_resource_trace = std::string(optarg);
       break;
     case 'H': /* --resource_history_capacity */
-      m_resource_history_capacity = std::stoull(optarg);
+      m_resource_history_capacity = parse_uint(
+          "--resource_history_capacity", std::numeric_limits<size_t>::max());
       break;
     default:
       print_usage(argv[0], 1);
@@ -108,6 +139,12 @@ bool Trace_Params::getopt(int &argc, char **&argv) {
       return false;
     }
     m_infile = argv[optind];
+  }
+  if (m_is_time_set && (!std::isfinite(m_max_time) || m_max_time < 0.0)) {
+    std::cerr << "Error: --max_time must be finite and nonnegative"
+              << std::endl;
+    print_usage(argv[0], 1);
+    return false;
   }
   if (!m_is_jobs_set && m_is_time_set) {
     m_max_jobs = std::numeric_limits<decltype(m_max_jobs)>::max();
@@ -174,7 +211,7 @@ void Trace_Params::print() const {
   string msg;
   msg = "------ Trace params ------\n";
   msg += " - max_jobs: " + to_string(m_max_jobs) + "\n";
-  msg += " - max_time: " + m_max_time + "\n";
+  msg += " - max_time: " + to_string(m_max_time) + "\n";
   msg += " - infile: " + m_infile + "\n";
   msg += " - outfile: " + m_outfile + "\n";
   msg += " - datfile: " + m_datfile + "\n";

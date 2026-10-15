@@ -858,6 +858,11 @@ if(DR_EVT_WITH_UNIT_TESTING)
     NAME test_max_time
     COMMAND /bin/bash
       ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_max_time_tests.sh
+      $<TARGET_FILE:sim-bin> $<TARGET_FILE:trace-bin>)
+  add_test(
+    NAME test_cli_input
+    COMMAND /bin/bash
+      ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_cli_input_tests.sh
       $<TARGET_FILE:sim-bin>)
   if(Python3_Interpreter_FOUND)
     add_test(
@@ -882,7 +887,7 @@ if(DR_EVT_WITH_UNIT_TESTING)
     test_append_job_api test_custom_scheduler test_progressive_load
     test_queue_input
     test_batch_vs_streaming test_block_queue test_capacity_schedule
-    test_warm_start test_warm_start_validation test_max_time
+    test_warm_start test_warm_start_validation test_max_time test_cli_input
     PROPERTIES
       LABELS "unit;native"
       WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

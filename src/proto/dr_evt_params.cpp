@@ -61,7 +61,15 @@ set_sim_options(const dr_evt_proto::DR_EVT_Params::Simulation_Params &cfg,
     // plain assignment above, not before.
     sp.set_infile_list(cfg.infile_list());
   }
-  sp.set_outfile(cfg.outfile());
+  // Only apply an explicit outfile. set_outfile() derives a default from
+  // m_infile when given an empty name, and the positional trace file has
+  // not been applied yet at this point of CLI parsing, so the default
+  // would become "sim_out.txt" instead of "<trace stem>.out".
+  // Sim_Params::getopt() calls set_outfile(m_outfile) once the input file
+  // is final, which derives the name correctly when none was given.
+  if (!cfg.outfile().empty()) {
+    sp.set_outfile(cfg.outfile());
+  }
 
   sp.m_redis_uri = cfg.redis_uri();
   sp.m_redis_key_prefix = cfg.redis_key_prefix();
@@ -355,10 +363,20 @@ set_trace_options(const dr_evt_proto::DR_EVT_Params::Tracing_Params &cfg,
   // using trace_params = dr_evt_proto::DR_EVT_Params::Tracing_Params;
 
   tp.m_max_jobs = cfg.max_jobs();
-  tp.m_max_time = cfg.max_time();
-
   tp.m_is_jobs_set = (tp.m_max_jobs > 0u);
-  tp.m_is_time_set = (!tp.m_max_time.empty());
+  // The proto field is text; parse and validate it the way the tracer's
+  // own --max_time option is handled (finite, nonnegative seconds).
+  tp.m_is_time_set = (!cfg.max_time().empty());
+  if (tp.m_is_time_set) {
+    try {
+      tp.m_max_time = std::stod(cfg.max_time());
+    } catch (const std::exception &) {
+      throw std::runtime_error("max_time is not a number: " + cfg.max_time());
+    }
+    if (!std::isfinite(tp.m_max_time) || tp.m_max_time < 0.0) {
+      throw std::runtime_error("max_time must be finite and nonnegative");
+    }
+  }
 
   tp.m_infile = cfg.infile();
   tp.set_outfile(cfg.outfile());
@@ -367,7 +385,7 @@ set_trace_options(const dr_evt_proto::DR_EVT_Params::Tracing_Params &cfg,
   tp.m_subsumfile = cfg.outfile_subsum();
 
   if (!tp.m_is_time_set) {
-    tp.m_max_time = dr_evt::max_tstamp;
+    tp.m_max_time = dr_evt::max_sim_time;
   }
   if (!tp.m_is_jobs_set && tp.m_is_time_set) {
     tp.m_max_jobs = std::numeric_limits<decltype(tp.m_max_jobs)>::max();
@@ -381,7 +399,12 @@ set_trace_options(const dr_evt_proto::DR_EVT_Params::Tracing_Params &cfg,
 void read_proto_params(const std::string &filename, dr_evt::Sim_Params &sp,
                        bool verbose) {
   dr_evt_proto::DR_EVT_Params::Simulation_Params dr_evt_sim_setup;
-  dr_evt::read_prototext(filename, false, dr_evt_sim_setup);
+  // read_prototext() reports the specific problem (missing file, parse
+  // error) on stderr and returns false. Stop here rather than applying an
+  // empty message, which would silently run with default parameters.
+  if (!dr_evt::read_prototext(filename, false, dr_evt_sim_setup)) {
+    throw std::runtime_error("failed to read config file: " + filename);
+  }
 
   if (verbose) {
     std::string str;
@@ -399,7 +422,9 @@ void read_proto_params(const std::string &filename, dr_evt::Sim_Params &sp,
 void read_proto_params(const std::string &filename, dr_evt::Trace_Params &tp,
                        bool verbose) {
   dr_evt_proto::DR_EVT_Params::Tracing_Params dr_evt_trace_setup;
-  dr_evt::read_prototext(filename, false, dr_evt_trace_setup);
+  if (!dr_evt::read_prototext(filename, false, dr_evt_trace_setup)) {
+    throw std::runtime_error("failed to read config file: " + filename);
+  }
 
   if (verbose) {
     std::string str;

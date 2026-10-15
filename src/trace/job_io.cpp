@@ -61,14 +61,19 @@ int load(const string &fname, const Data_Columns &dcols,
   bool timestamp_encoding_detected = false;
 
   while (std::getline(ifs, line)) { // Read a line
-    if (cnt++ >= max_cnt) {
-      break;
-    }
-
     // Strip trailing whitespace (including \r from Windows line endings)
     while (!line.empty() && (line.back() == ' ' || line.back() == '\t' ||
                              line.back() == '\r' || line.back() == '\n')) {
       line.pop_back();
+    }
+    // A blank line (commonly a trailing newline at end of file) is not a
+    // record: skip it instead of failing the load on a short field count.
+    // It does not count toward max_cnt either.
+    if (line.empty()) {
+      continue;
+    }
+    if (cnt++ >= max_cnt) {
+      break;
     }
 
     vector<string> rec_str;
@@ -188,12 +193,15 @@ int load(const string &fname, const Data_Columns &dcols,
     const auto q_idx = dcols.get_queue_idx();
     num_jobs_t cnt = static_cast<num_jobs_t>(0u);
     while (std::getline(ifs, line)) {
-      if (cnt++ >= max_cnt) {
-        break;
-      }
       while (!line.empty() && (line.back() == ' ' || line.back() == '\t' ||
                                line.back() == '\r' || line.back() == '\n')) {
         line.pop_back();
+      }
+      if (line.empty()) {
+        continue; // blank line, see load_data()
+      }
+      if (cnt++ >= max_cnt) {
+        break;
       }
 
       vector<string> fields;
@@ -236,12 +244,15 @@ int load(const string &fname, const Data_Columns &dcols,
   // This queue-free path has no queue-ID index, conversion, or condition.
   num_jobs_t cnt = static_cast<num_jobs_t>(0u);
   while (std::getline(ifs, line)) {
-    if (cnt++ >= max_cnt) {
-      break;
-    }
     while (!line.empty() && (line.back() == ' ' || line.back() == '\t' ||
                              line.back() == '\r' || line.back() == '\n')) {
       line.pop_back();
+    }
+    if (line.empty()) {
+      continue; // blank line, see load_data()
+    }
+    if (cnt++ >= max_cnt) {
+      break;
     }
 
     vector<string> fields;

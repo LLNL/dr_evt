@@ -136,7 +136,9 @@ PYBIND11_MODULE(dr_evt, m) {
   // Statistics structure
   py::class_<Simulation::Statistics>(m, "Statistics")
       .def_readonly("jobs_submitted", &Simulation::Statistics::jobs_submitted,
-                    "int: Number of submitted jobs.")
+                    "int: Jobs accepted into the wait queue.")
+      .def_readonly("jobs_started", &Simulation::Statistics::jobs_started,
+                    "int: Jobs that have begun execution.")
       .def_readonly("jobs_completed", &Simulation::Statistics::jobs_completed,
                     "int: Number of completed jobs.")
       .def_readonly("jobs_running", &Simulation::Statistics::jobs_running,
@@ -171,6 +173,7 @@ PYBIND11_MODULE(dr_evt, m) {
                     "float: Time from first submission to final completion.")
       .def("__repr__", [](const Simulation::Statistics &s) {
         return "Statistics(jobs=" + std::to_string(s.jobs_completed) + "/" +
+               std::to_string(s.jobs_started) + "/" +
                std::to_string(s.jobs_submitted) +
                ", utilization=" + std::to_string(s.utilization * 100) + "%)";
       });

@@ -454,6 +454,7 @@ int main(int argc, char **argv) {
 
     std::cout << "\n=== Final Statistics ===\n"
               << "Jobs submitted:  " << stats.jobs_submitted() << "\n"
+              << "Jobs started:    " << stats.jobs_started() << "\n"
               << "Jobs completed:  " << stats.jobs_completed() << "\n"
               << "Current time:    " << stats.current_time() << "\n"
               << "Resource area:   " << stats.resource_area()

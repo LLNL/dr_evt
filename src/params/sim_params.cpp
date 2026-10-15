@@ -164,6 +164,24 @@ void Sim_Params::getopt(int &argc, char **&argv) {
   m_is_jobs_set = false;
   m_is_time_set = false;
 
+  // Set only by -i/--infile on the command line. A config file may also
+  // fill m_infile, and a positional argument is allowed to override that.
+  bool infile_option = false;
+  // Parse an unsigned option value, rejecting a sign, trailing text, and
+  // values above the destination type. atoi() returned 0 on garbage and
+  // wrapped negatives; std::stoull() accepted a leading minus sign and
+  // threw uncaught exceptions on garbage.
+  auto parse_uint = [&](const char *name, unsigned long long max) {
+    try {
+      return parse_unsigned(optarg, max);
+    } catch (const std::invalid_argument &) {
+      std::cerr << "Error: " << name << " expects a non-negative integer no "
+                << "greater than " << max << ", got '" << optarg << "'"
+                << std::endl;
+      print_usage(argv[0], 1);
+      return 0ULL;
+    }
+  };
   while ((c = getopt_long(argc, argv, OPTIONS, sim_longopts, NULL)) != -1) {
     switch (c) {
     case 'h': /* --help */
@@ -171,16 +189,21 @@ void Sim_Params::getopt(int &argc, char **&argv) {
       break;
     case 'i': /* --infile */
       m_infile = std::string(optarg);
+      infile_option = true;
       break;
     case 'L': /* --infile_list */
       m_infile_list = std::string(optarg);
       break;
     case 'j': /* --max_jobs */
-      m_max_jobs = static_cast<dr_evt::num_jobs_t>(atoi(optarg));
+      // The type maximum is the internal "unlimited" sentinel; stop one below.
+      m_max_jobs = static_cast<dr_evt::num_jobs_t>(parse_uint(
+          "--max_jobs",
+          std::numeric_limits<dr_evt::num_jobs_t>::max() - 1));
       m_is_jobs_set = true;
       break;
     case 'n': /* --total_nodes */
-      m_total_nodes = static_cast<num_nodes_t>(atoi(optarg));
+      m_total_nodes = static_cast<num_nodes_t>(parse_uint(
+          "--total_nodes", std::numeric_limits<num_nodes_t>::max()));
       break;
     case OPT_CAPACITY_SCHEDULE: /* --capacity_schedule */
       m_capacity_schedule = std::string(optarg);
@@ -196,7 +219,9 @@ void Sim_Params::getopt(int &argc, char **&argv) {
       m_checkpoint_file = optarg;
       break;
     case OPT_CHECKPOINT_INTERVAL_JOBS:
-      m_checkpoint_interval_jobs = std::stoull(optarg);
+      m_checkpoint_interval_jobs = parse_uint(
+          "--checkpoint_interval_jobs",
+          std::numeric_limits<dr_evt::num_jobs_t>::max());
       if (m_checkpoint_interval_jobs == 0) {
         std::cerr
             << "Error: --checkpoint_interval_jobs must be greater than zero\n";
@@ -204,10 +229,17 @@ void Sim_Params::getopt(int &argc, char **&argv) {
       }
       break;
     case 's': /* --seed */
-      m_seed = static_cast<unsigned>(atoi(optarg));
+      m_seed = static_cast<unsigned>(
+          parse_uint("--seed", std::numeric_limits<unsigned>::max()));
       break;
     case 't': /* --max_time */
-      m_max_time = static_cast<dr_evt::sim_time_t>(std::stod(optarg));
+      try {
+        m_max_time = static_cast<dr_evt::sim_time_t>(std::stod(optarg));
+      } catch (const std::exception &) {
+        std::cerr << "Error: --max_time expects a number, got '" << optarg
+                  << "'" << std::endl;
+        print_usage(argv[0], 1);
+      }
       m_is_time_set = true;
       break;
     case 'b': /* --backfill_policy */
@@ -227,7 +259,8 @@ void Sim_Params::getopt(int &argc, char **&argv) {
       }
     } break;
     case OPT_NUM_MAX_CANDIDATES: /* --num_max_candidates */
-      m_num_max_candidates = std::stoull(optarg);
+      m_num_max_candidates = parse_uint(
+          "--num_max_candidates", std::numeric_limits<size_t>::max());
       if (m_num_max_candidates == 0) {
         std::cerr << "Error: --num_max_candidates must be greater than zero"
                   << std::endl;
@@ -277,7 +310,8 @@ void Sim_Params::getopt(int &argc, char **&argv) {
     } break;
     case 'Q': /* --block_size */
     {
-      m_block_size = std::stoull(optarg);
+      m_block_size =
+          parse_uint("--block_size", std::numeric_limits<size_t>::max());
       // Validate power of 2
       if (m_block_size == 0 || (m_block_size & (m_block_size - 1)) != 0) {
         std::cerr << "Error: block_size must be a power of 2 (e.g., 4, 8, 16, "
@@ -288,7 +322,8 @@ void Sim_Params::getopt(int &argc, char **&argv) {
     } break;
     case 'A': /* --wait_queue_capacity */
     {
-      m_wait_queue_capacity = std::stoull(optarg);
+      m_wait_queue_capacity = parse_uint(
+          "--wait_queue_capacity", std::numeric_limits<size_t>::max());
     } break;
     case 'G': /* --wait_queue_overflow */
     {
@@ -308,7 +343,8 @@ void Sim_Params::getopt(int &argc, char **&argv) {
     } break;
     case 'K': /* --job_store_capacity */
     {
-      m_job_store_capacity = std::stoull(optarg);
+      m_job_store_capacity = parse_uint(
+          "--job_store_capacity", std::numeric_limits<size_t>::max());
     } break;
     case 'W': /* --job_store_overflow */
     {
@@ -327,7 +363,8 @@ void Sim_Params::getopt(int &argc, char **&argv) {
       }
     } break;
     case OPT_JOB_FLUSH_INTERVAL: /* --job_flush_interval */
-      m_job_flush_interval = std::stoull(optarg);
+      m_job_flush_interval = parse_uint(
+          "--job_flush_interval", std::numeric_limits<size_t>::max());
       break;
     case 'm': /* --check_memory_pressure */
     {
@@ -348,7 +385,8 @@ void Sim_Params::getopt(int &argc, char **&argv) {
     } break;
     case 'H': /* --resource_history_capacity */
     {
-      m_resource_history_capacity = std::stoull(optarg);
+      m_resource_history_capacity = parse_uint(
+          "--resource_history_capacity", std::numeric_limits<size_t>::max());
     } break;
     case OPT_TRACE_TYPE: /* --trace_type */
     {
@@ -473,14 +511,23 @@ void Sim_Params::getopt(int &argc, char **&argv) {
   apply_sim_start_time();
 
   // --infile_list mode has no single positional trace file to require -
-  // the file it names lists several instead. Otherwise, unchanged:
-  // exactly one positional argument, which always wins over -i/--infile
-  // if both were somehow given.
+  // the file it names lists several instead. Otherwise the trace comes
+  // from either -i/--infile or exactly one positional argument, the same
+  // rule the tracer applies: one of them is required, and giving both is
+  // an error rather than silently preferring one.
   if (m_infile_list.empty()) {
-    if (optind != (argc - 1)) {
+    const bool has_positional = (optind == (argc - 1));
+    if (has_positional) {
+      if (infile_option) {
+        std::cerr << "Error: give the input trace either as -i/--infile or "
+                     "as the positional argument, not both"
+                  << std::endl;
+        print_usage(argv[0], 1);
+      }
+      m_infile = argv[optind];
+    } else if (optind != argc || m_infile.empty()) {
       print_usage(argv[0], 1);
     }
-    m_infile = argv[optind];
   } else if (optind != argc) {
     print_usage(argv[0], 1);
   } else {
@@ -491,7 +538,18 @@ void Sim_Params::getopt(int &argc, char **&argv) {
       print_usage(argv[0], 1);
     }
   }
-  set_outfile(m_outfile);
+  // Deriving the default output name throws when the input itself ends in
+  // ".out", since the run would overwrite its own input. Report that as an
+  // ordinary usage error rather than letting it escape main() and abort.
+  try {
+    set_outfile(m_outfile);
+  } catch (const std::exception &e) {
+    std::cerr << "Error: " << e.what() << std::endl
+              << "Input files ending in '.out' need an explicit output name; "
+                 "pass -o/--outfile."
+              << std::endl;
+    print_usage(argv[0], 1);
+  }
 
   if (m_redis_uri.empty() != m_redis_key_prefix.empty()) {
     std::cerr << "Error: --redis_uri and --redis_key_prefix must be specified "
@@ -771,6 +829,7 @@ void Sim_Params::print_usage(const std::string exec, int code) {
          "        For normal: std dev = limit * stddev\n"
          "        For lognormal: shape parameter\n"
          "        For uniform: upper bound offset\n"
+         "        Sampled run times are clamped to [1 second, time_limit].\n"
          "\n"
          "    -v, --verbose\n"
          "        Enable verbose output for debugging and testing.\n"

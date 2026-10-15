@@ -80,6 +80,7 @@ std::string make_session_id(const std::string &session_name) {
 void copy_statistics(const dr_evt::Simulation::Statistics &statistics,
                      GetStatisticsResponse *response) {
   response->set_jobs_submitted(statistics.jobs_submitted);
+  response->set_jobs_started(statistics.jobs_started);
   response->set_jobs_completed(statistics.jobs_completed);
   response->set_jobs_running(statistics.jobs_running);
   response->set_jobs_waiting(statistics.jobs_waiting);
@@ -108,6 +109,7 @@ void write_statistics_file(const std::string &filename,
   }
   output << "{\n"
          << "  \"jobs_submitted\": " << statistics.jobs_submitted << ",\n"
+         << "  \"jobs_started\": " << statistics.jobs_started << ",\n"
          << "  \"jobs_completed\": " << statistics.jobs_completed << ",\n"
          << "  \"jobs_running\": " << statistics.jobs_running << ",\n"
          << "  \"jobs_waiting\": " << statistics.jobs_waiting << ",\n"
@@ -152,18 +154,12 @@ public:
   Status
   Session(ServerContext *context,
           ServerReaderWriter<ServerMessage, ClientMessage> *stream) override {
-    // sim_params must outlive sim: Simulation stores its parameters
-    // as a reference (const Sim_Params& m_params), not a copy - a
-    // local Sim_Params scoped to just the kInit case block below
-    // would be destroyed as soon as that block ends, leaving
-    // m_params a dangling reference to deallocated stack memory for
-    // the rest of the session. Confirmed empirically: this was
-    // exactly the cause of every session loading precisely 1 job
-    // from its trace regardless of the trace's actual size -
-    // m_params.m_is_jobs_set/m_max_jobs were reading back as
-    // garbage (m_is_jobs_set=16, not a valid bool at all) by the
-    // time initialize_trace() ran, since kInit's own local sp had
-    // already gone out of scope by then.
+    // Session-scoped so a failed Init followed by a retry on the same
+    // stream starts from the previous values. Simulation now copies its
+    // Sim_Params at construction, so this lifetime is no longer a
+    // correctness requirement (it used to be: the simulation held a
+    // reference, and a block-scoped Sim_Params left it dangling, which
+    // showed up as every session loading exactly one job).
     dr_evt::Sim_Params sim_params;
     std::unique_ptr<dr_evt::Simulation> sim;
     std::string session_id;

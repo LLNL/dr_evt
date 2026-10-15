@@ -54,7 +54,8 @@ ${CMAKE_INSTALL_PREFIX}/bin/simulator INPUT_FILE [OPTIONS]
 ```
 
 `INPUT_FILE` (the input job trace, in CSV format) can also be given via
-`-i, --infile FILENAME` instead of as the first positional argument.
+`-i, --infile FILENAME` instead of as the first positional argument. Give it
+one way or the other; supplying both is an error.
 
 ## Input/Output Options
 

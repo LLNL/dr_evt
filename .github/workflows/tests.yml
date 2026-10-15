@@ -184,7 +184,7 @@ jobs:
         id: run-time-mode
         run: |
           echo "========================================"
-          echo "Testing run_time_mode (actual/distribution/limit) and distribution capping (7 tests)"
+          echo "Testing run_time_mode (actual/distribution/limit) and distribution capping (8 tests)"
           echo "========================================"
           ./tests/run_time_mode_tests.sh
 
@@ -246,14 +246,14 @@ jobs:
         id: config
         run: |
           echo "========================================"
-          echo "Running Config Tests (12 tests)"
+          echo "Running Config Tests (14 tests)"
           echo "========================================"
           ./tests/run_configs_tests.sh
 
       - name: Run Core CTest Tests
         id: core-ctest
         run: |
-          echo "Running 17 native CTest registrations, the trace-tools test, plus MPI when available"
+          echo "Running 18 native CTest registrations, the trace-tools test, plus MPI when available"
           cd build
           ctest --output-on-failure
 
@@ -341,15 +341,15 @@ jobs:
           echo "  Scheduler correctness - Installed (34 fixtures): ${{ steps.scheduler-correctness-installed.outcome }}"
           echo "  Queue Impl Differential (34×4 impls): ${{ steps.queue-impl.outcome }}"
           echo "  Column Aliases (8 tests): ${{ steps.column-alias.outcome }}"
-          echo "  Run Time Mode (7 tests): ${{ steps.run-time-mode.outcome }}"
+          echo "  Run Time Mode (8 tests): ${{ steps.run-time-mode.outcome }}"
           echo "  Unit (7 tests): ${{ steps.unit.outcome }}"
           echo "  Feature (8 tests): ${{ steps.feature.outcome }}"
           echo "  Conservative (2 tests): ${{ steps.conservative.outcome }}"
           echo "  Replay (5 tests): ${{ steps.replay.outcome }}"
           echo "  Resource History (5 tests): ${{ steps.resource-history.outcome }}"
           echo "  Job Store (6 tests): ${{ steps.job-store.outcome }}"
-          echo "  Config (12 tests): ${{ steps.config.outcome }}"
-          echo "  CTest (17 native + trace tools + MPI when available): ${{ steps.core-ctest.outcome }}"
+          echo "  Config (14 tests): ${{ steps.config.outcome }}"
+          echo "  CTest (18 native + trace tools + MPI when available): ${{ steps.core-ctest.outcome }}"
           echo "  Python API (19 tests): ${{ steps.python-api.outcome }}"
           echo "  Market Package (12 tests): ${{ steps.market-package.outcome }}"
           echo "  Append-Job (23 C++ + 5 optional gRPC checks): ${{ steps.append-job.outcome }}"

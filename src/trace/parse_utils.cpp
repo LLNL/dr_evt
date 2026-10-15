@@ -12,6 +12,7 @@
 #include "trace/parse_utils.hpp"
 #include <algorithm>
 #include <cctype>
+#include <limits>
 #include <map>
 #include <stdexcept>
 #include <unordered_map>
@@ -109,12 +110,36 @@ void set_by(epoch_t &t, const std::string &str) {
   set_by(t, str, detect_timestamp_encoding(str));
 }
 
-void set_by(unsigned &v, const std::string &str) {
-  size_t pos;
-  v = static_cast<unsigned>(stoi(str, &pos));
+unsigned long long parse_unsigned(const std::string &str,
+                                  unsigned long long max) {
+  // stoi()/stoul() both accept a leading '-' and wrap the result, so a
+  // negative field used to become a huge count instead of an error.
+  // Reject the sign explicitly, require the whole string to be consumed,
+  // and range-check against the destination type's maximum.
+  const size_t first = str.find_first_not_of(" \t");
+  if (first == std::string::npos || str[first] == '-' || str[first] == '+') {
+    throw std::invalid_argument{"Failed to parse an unsigned integer! " + str};
+  }
+  size_t pos = 0;
+  unsigned long long v = 0;
+  try {
+    v = std::stoull(str, &pos);
+  } catch (const std::exception &) {
+    throw std::invalid_argument{"Failed to parse an unsigned integer! " + str};
+  }
   if (pos != str.size()) {
     throw std::invalid_argument{"Failed to parse an unsigned integer! " + str};
   }
+  if (v > max) {
+    throw std::invalid_argument{"Unsigned integer out of range (max " +
+                                std::to_string(max) + ")! " + str};
+  }
+  return v;
+}
+
+void set_by(unsigned &v, const std::string &str) {
+  v = static_cast<unsigned>(
+      parse_unsigned(str, std::numeric_limits<unsigned>::max()));
 }
 
 void set_by(double &v, const std::string &str) {
@@ -183,6 +208,9 @@ std::string trim(const std::string &str, const std::string &whitespace) {
 
 std::vector<substr_pos_t> comma_separate(const std::string &str) {
   std::vector<substr_pos_t> ret;
+  if (str.empty()) {
+    return ret; // str.back() below would be undefined on an empty string
+  }
   ret.reserve(str.size());
   size_t s = 0ul;
 

@@ -208,6 +208,8 @@ def test_streaming_api(result):
         sim = dr_evt.Simulation(params)
         # append_job() is the public streaming entry point.
         first_id = sim.append_job(0.0, 10, QUEUE_INPUT, 100)
+        # Appended in submit-time order, as the streaming contract requires.
+        third_id = sim.append_job(25.0, 5, QUEUE_INPUT, 10)
         second_id = sim.append_job(50.0, 20, QUEUE_INPUT, 100)
         pending = sim.get_job_statuses([second_id, first_id, second_id])
         assert [item.job_idx for item in pending] == [second_id, first_id,
@@ -221,12 +223,22 @@ def test_streaming_api(result):
         assert active[0].start_time == 0.0
         assert active[0].end_time == 100.0
         assert active[1].state == dr_evt.JobState.PENDING
+        # jobs_submitted counts jobs accepted into the queue; jobs_started
+        # counts starts. Three were appended, one has started at t=0.
+        stats = sim.get_statistics()
+        assert stats.jobs_submitted == 3, f"jobs_submitted={stats.jobs_submitted}"
+        assert stats.jobs_started == 1, f"jobs_started={stats.jobs_started}"
         result.record_pass("append_job, status query, and advance_to")
 
-        # Test run_until_exclusive
+        # Test run_until_exclusive: the job at t=25..35 lies strictly before
+        # the target and must be processed (a no-op would leave the clock
+        # at 0); the arrival at exactly t=50 must not be.
         sim.run_until_exclusive(50.0)
-        # Job 1 must NOT have started yet - the event at exactly the
-        # target time is excluded by run_until_exclusive.
+        assert sim.get_current_time() == 35.0, \
+            f"run_until_exclusive(50.0) should stop at the t=35 end event, but time={sim.get_current_time()}"
+        third = sim.get_job_statuses([third_id])[0]
+        assert third.state == dr_evt.JobState.COMPLETED, \
+            f"third job should be COMPLETED at t=35, got {third.state}"
         assert sim.get_nodes_in_use() == 10, \
             f"run_until_exclusive(50.0) should not process the t=50 event yet, but nodes_in_use={sim.get_nodes_in_use()}"
         sim.advance_to(50.0)

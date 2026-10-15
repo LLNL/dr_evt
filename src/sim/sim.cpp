@@ -61,7 +61,7 @@ timeout_t checked_streaming_limit(tdiff_t limit_time) {
 
 constexpr std::array<char, 8> checkpoint_magic{'D', 'R', 'E', 'V',
                                                'T', 'C', 'K', 'P'};
-constexpr std::uint32_t checkpoint_version = 6;
+constexpr std::uint32_t checkpoint_version = 8; // 8: adds m_latest_submit_time
 constexpr std::uint64_t checkpoint_collection_limit = 100000000;
 constexpr std::uint64_t checkpoint_string_limit = 64 * 1024 * 1024;
 
@@ -256,74 +256,85 @@ void start_restart_output_segment(const std::string &filename,
 } // namespace
 
 template <typename TraceType>
-BasicSimulation<TraceType>::BasicSimulation(const Sim_Params &params)
-    : m_params(params), m_trace(params.m_infile, params.m_trace_format,
-                                params.m_timestamp_format, params.m_timezone),
+BasicSimulation<TraceType>::BasicSimulation(Sim_Params params)
+    : m_params(std::move(params)),
+      m_trace(m_params.m_infile, m_params.m_trace_format,
+              m_params.m_timestamp_format, m_params.m_timezone),
       m_scheduler(create_scheduler(
-          params.m_total_nodes, m_trace.data().size(), params.m_backfill_policy,
-          params.m_priority_policy, params.m_queue_impl, params.m_block_size,
-          params.m_wait_queue_capacity, params.m_wait_queue_overflow)),
+          m_params.m_total_nodes, m_trace.data().size(),
+          m_params.m_backfill_policy, m_params.m_priority_policy,
+          m_params.m_queue_impl, m_params.m_block_size,
+          m_params.m_wait_queue_capacity, m_params.m_wait_queue_overflow)),
       m_custom_scheduler(nullptr), m_current_time(0.0),
-      m_job_rejection_capacity(params.m_total_nodes),
-      m_capacity_changes(load_capacity_schedule(params.m_capacity_schedule,
-                                                params.m_total_nodes)),
-      m_next_capacity_change(0), m_current_capacity(params.m_total_nodes),
+      m_job_rejection_capacity(m_params.m_total_nodes),
+      m_capacity_changes(load_capacity_schedule(m_params.m_capacity_schedule,
+                                                m_params.m_total_nodes)),
+      m_next_capacity_change(0), m_current_capacity(m_params.m_total_nodes),
       m_capacity_area(0.0), m_capacity_area_time(0.0), m_jobs_completed(0),
-      m_jobs_submitted(0), m_next_progressive_file(0),
+      m_jobs_submitted(0), m_jobs_started(0),
+      m_latest_submit_time(-std::numeric_limits<sim_time_t>::infinity()),
+      m_next_progressive_file(0),
       m_checkpoint_loaded(false), m_last_automatic_checkpoint_jobs(0),
       m_has_automatic_checkpoint(false),
       m_last_automatic_checkpoint_time(0.0),
       m_pre_start_jobs(0), m_warm_resource_area(0.0),
-      m_warm_resource_end(0.0), m_rng(params.m_seed), m_queue_length_sum(0),
+      m_warm_resource_end(0.0), m_rng(m_params.m_seed), m_queue_length_sum(0),
       m_queue_length_samples(0), m_queue_length_peak(0) {
   reset_capacity_schedule();
 }
 
 template <typename TraceType>
-BasicSimulation<TraceType>::BasicSimulation(const Sim_Params &params,
+BasicSimulation<TraceType>::BasicSimulation(Sim_Params params,
                                             job_cost_function_t cost_function,
                                             backfill_selector_t selector)
-    : m_params(params), m_trace(params.m_infile, params.m_trace_format,
-                                params.m_timestamp_format, params.m_timezone),
+    : m_params(std::move(params)),
+      m_trace(m_params.m_infile, m_params.m_trace_format,
+              m_params.m_timestamp_format, m_params.m_timezone),
       m_scheduler(std::make_unique<CustomFCFSScheduler>(
-          params.m_total_nodes, m_trace.data().size(), params.m_backfill_policy,
-          params.m_num_max_candidates, std::move(cost_function),
-          std::move(selector), params.m_wait_queue_capacity,
-          params.m_wait_queue_overflow)),
+          m_params.m_total_nodes, m_trace.data().size(),
+          m_params.m_backfill_policy, m_params.m_num_max_candidates,
+          std::move(cost_function),
+          std::move(selector), m_params.m_wait_queue_capacity,
+          m_params.m_wait_queue_overflow)),
       m_custom_scheduler(static_cast<CustomFCFSScheduler *>(m_scheduler.get())),
-      m_current_time(0.0), m_job_rejection_capacity(params.m_total_nodes),
-      m_capacity_changes(load_capacity_schedule(params.m_capacity_schedule,
-                                                params.m_total_nodes)),
-      m_next_capacity_change(0), m_current_capacity(params.m_total_nodes),
+      m_current_time(0.0), m_job_rejection_capacity(m_params.m_total_nodes),
+      m_capacity_changes(load_capacity_schedule(m_params.m_capacity_schedule,
+                                                m_params.m_total_nodes)),
+      m_next_capacity_change(0), m_current_capacity(m_params.m_total_nodes),
       m_capacity_area(0.0), m_capacity_area_time(0.0), m_jobs_completed(0),
-      m_jobs_submitted(0), m_next_progressive_file(0),
+      m_jobs_submitted(0), m_jobs_started(0),
+      m_latest_submit_time(-std::numeric_limits<sim_time_t>::infinity()),
+      m_next_progressive_file(0),
       m_checkpoint_loaded(false), m_last_automatic_checkpoint_jobs(0),
       m_has_automatic_checkpoint(false),
       m_last_automatic_checkpoint_time(0.0),
       m_pre_start_jobs(0), m_warm_resource_area(0.0),
-      m_warm_resource_end(0.0), m_rng(params.m_seed), m_queue_length_sum(0),
+      m_warm_resource_end(0.0), m_rng(m_params.m_seed), m_queue_length_sum(0),
       m_queue_length_samples(0), m_queue_length_peak(0) {
   reset_capacity_schedule();
 }
 
 template <typename TraceType>
 BasicSimulation<TraceType>::BasicSimulation(
-    const Sim_Params &params, std::unique_ptr<CustomFCFSScheduler> scheduler)
-    : m_params(params), m_trace(params.m_infile, params.m_trace_format,
-                                params.m_timestamp_format, params.m_timezone),
+    Sim_Params params, std::unique_ptr<CustomFCFSScheduler> scheduler)
+    : m_params(std::move(params)),
+      m_trace(m_params.m_infile, m_params.m_trace_format,
+              m_params.m_timestamp_format, m_params.m_timezone),
       m_scheduler(std::move(scheduler)),
       m_custom_scheduler(static_cast<CustomFCFSScheduler *>(m_scheduler.get())),
-      m_current_time(0.0), m_job_rejection_capacity(params.m_total_nodes),
-      m_capacity_changes(load_capacity_schedule(params.m_capacity_schedule,
-                                                params.m_total_nodes)),
-      m_next_capacity_change(0), m_current_capacity(params.m_total_nodes),
+      m_current_time(0.0), m_job_rejection_capacity(m_params.m_total_nodes),
+      m_capacity_changes(load_capacity_schedule(m_params.m_capacity_schedule,
+                                                m_params.m_total_nodes)),
+      m_next_capacity_change(0), m_current_capacity(m_params.m_total_nodes),
       m_capacity_area(0.0), m_capacity_area_time(0.0), m_jobs_completed(0),
-      m_jobs_submitted(0), m_next_progressive_file(0),
+      m_jobs_submitted(0), m_jobs_started(0),
+      m_latest_submit_time(-std::numeric_limits<sim_time_t>::infinity()),
+      m_next_progressive_file(0),
       m_checkpoint_loaded(false), m_last_automatic_checkpoint_jobs(0),
       m_has_automatic_checkpoint(false),
       m_last_automatic_checkpoint_time(0.0),
       m_pre_start_jobs(0), m_warm_resource_area(0.0),
-      m_warm_resource_end(0.0), m_rng(params.m_seed), m_queue_length_sum(0),
+      m_warm_resource_end(0.0), m_rng(m_params.m_seed), m_queue_length_sum(0),
       m_queue_length_samples(0), m_queue_length_peak(0) {
   if (!m_scheduler) {
     throw std::invalid_argument("custom scheduler must not be null");
@@ -383,6 +394,8 @@ template <typename TraceType> void BasicSimulation<TraceType>::run() {
     if (m_params.m_verbose) {
       std::cout << "Simulation complete\n" + std::string("Jobs submitted: ") +
                        std::to_string(m_jobs_submitted) + "\n" +
+                       std::string("Jobs started: ") +
+                       std::to_string(m_jobs_started) + "\n" +
                        std::string("Jobs completed: ") +
                        std::to_string(m_jobs_completed) + "\n";
     }
@@ -471,6 +484,8 @@ template <typename TraceType> void BasicSimulation<TraceType>::run() {
   if (m_params.m_verbose) {
     std::cout << "Simulation complete\n" + std::string("Jobs submitted: ") +
                      std::to_string(m_jobs_submitted) + "\n" +
+                     std::string("Jobs started: ") +
+                     std::to_string(m_jobs_started) + "\n" +
                      std::string("Jobs completed: ") +
                      std::to_string(m_jobs_completed) + "\n";
   }
@@ -487,6 +502,7 @@ void BasicSimulation<TraceType>::print_stats(std::ostream &os) const {
   }
   os << std::endl;
   os << "Jobs submitted: " << m_jobs_submitted << std::endl;
+  os << "Jobs started: " << m_jobs_started << std::endl;
   // m_trace.completed_count() (populated via write_job_line(), called
   // both at reclaim time and by write_simulated_trace()'s final
   // flush - already run by the time this is called, see sim.cpp's
@@ -568,6 +584,8 @@ num_jobs_t BasicSimulation<TraceType>::initialize_trace(num_jobs_t max_jobs) {
   m_current_time = 0.0;
   reset_capacity_schedule();
   m_jobs_submitted = 0;
+  m_jobs_started = 0;
+  m_latest_submit_time = -std::numeric_limits<sim_time_t>::infinity();
   m_jobs_completed = 0;
   m_pre_start_jobs = 0;
   m_warm_resource_area = 0.0;
@@ -750,6 +768,8 @@ void BasicSimulation<TraceType>::run_progressive() {
     m_current_time = 0.0;
     reset_capacity_schedule();
     m_jobs_submitted = 0;
+    m_jobs_started = 0;
+    m_latest_submit_time = -std::numeric_limits<sim_time_t>::infinity();
     m_jobs_completed = 0;
     m_next_progressive_file = 0;
     m_last_automatic_checkpoint_jobs = 0;
@@ -887,6 +907,14 @@ tdiff_t BasicSimulation<TraceType>::sample_run_time(tdiff_t time_limit,
     return 0.0;
   }
 
+  // Lower bound for a sampled run time. A job must run for a positive
+  // duration: Trace::insert_job() treats a stored actual_run_time <= 0 as
+  // "not set" and substitutes the full time_limit, so clamping a low-tail
+  // sample to 0 used to map it to the opposite extreme (about 16% of jobs
+  // ran their whole limit with scale = stddev = 0.5). One second is the
+  // trace format's own resolution.
+  const double min_run_time = std::min(1.0, time_limit);
+
   switch (dist) {
   case DistributionType::NORMAL: {
     double mean = time_limit * scale;
@@ -897,16 +925,17 @@ tdiff_t BasicSimulation<TraceType>::sample_run_time(tdiff_t time_limit,
     // it can never actually run longer than that. Cap here so a
     // wide-tailed sample can't silently let a job run past its own
     // limit, which would diverge from real system behavior.
-    return std::min(time_limit, std::max(0.0, run_time));
+    return std::min(time_limit, std::max(min_run_time, run_time));
   }
 
   case DistributionType::LOGNORMAL: {
     double mu = std::log(time_limit * scale);
     double sigma = stddev;
     std::lognormal_distribution<double> lognormal_dist(mu, sigma);
-    // Always >= 0 by construction; still cap at time_limit for the
-    // same reason as NORMAL above - a real job cannot run past it.
-    return std::min(time_limit, m_rng.sample(lognormal_dist));
+    // Positive by construction but can underflow toward 0; apply the
+    // same floor, and cap at time_limit for the same reason as NORMAL.
+    return std::min(time_limit,
+                    std::max(min_run_time, m_rng.sample(lognormal_dist)));
   }
 
   case DistributionType::UNIFORM: {
@@ -919,7 +948,7 @@ tdiff_t BasicSimulation<TraceType>::sample_run_time(tdiff_t time_limit,
     // direct function of the caller's own scale/stddev choice -
     // exceeding time_limit here only happens if the caller
     // deliberately set scale + stddev > 1.0.
-    return std::max(0.0, m_rng.sample(uniform_dist));
+    return std::max(min_run_time, m_rng.sample(uniform_dist));
   }
 
   default:
@@ -1060,6 +1089,8 @@ void BasicSimulation<TraceType>::save_checkpoint(std::ostream &output) {
     writer.value(m_capacity_area_time);
     writer.value(m_jobs_completed);
     writer.value(m_jobs_submitted);
+    writer.value(m_jobs_started);
+    writer.value(m_latest_submit_time);
     writer.value(static_cast<std::uint64_t>(m_next_progressive_file));
     writer.value(m_last_automatic_checkpoint_jobs);
     writer.value(m_has_automatic_checkpoint);
@@ -1366,6 +1397,8 @@ void BasicSimulation<TraceType>::load_checkpoint(std::istream &input) {
     m_capacity_area_time = reader.value<sim_time_t>();
     m_jobs_completed = reader.value<num_jobs_t>();
     m_jobs_submitted = reader.value<num_jobs_t>();
+    m_jobs_started = reader.value<num_jobs_t>();
+    m_latest_submit_time = reader.value<sim_time_t>();
     m_next_progressive_file = reader.count();
     if (m_next_progressive_file > m_params.m_infile_list_parsed.size()) {
       throw std::runtime_error(
@@ -1773,6 +1806,16 @@ job_no_t BasicSimulation<TraceType>::append_job(sim_time_t submit_time,
         std::to_string(submit_time) +
         " but current_time=" + std::to_string(m_current_time));
   }
+  if (submit_time < m_latest_submit_time) {
+    // The wait queues release arrivals in insertion order, so this job
+    // would silently wait until the later job already queued ahead of it
+    // arrives. Reject it, matching append_jobs()' ordering requirement.
+    throw std::invalid_argument(
+        "Cannot append job with submit_time=" + std::to_string(submit_time) +
+        " earlier than an already appended job's submit_time=" +
+        std::to_string(m_latest_submit_time) +
+        "; append jobs in non-decreasing submit_time order");
+  }
   const timeout_t stored_limit = checked_streaming_limit(limit_time);
   if (actual_run_time &&
       (!std::isfinite(*actual_run_time) || *actual_run_time <= 0.0 ||
@@ -1833,6 +1876,14 @@ std::vector<job_no_t> BasicSimulation<TraceType>::append_jobs(
           std::to_string(i) +
           " has submit_time=" + std::to_string(requests[i].submit_time) +
           " but current_time=" + std::to_string(m_current_time));
+    }
+    if (requests[i].submit_time < m_latest_submit_time) {
+      throw std::invalid_argument(
+          "Cannot append request " + std::to_string(i) + " with submit_time=" +
+          std::to_string(requests[i].submit_time) +
+          " earlier than an already appended job's submit_time=" +
+          std::to_string(m_latest_submit_time) +
+          "; append jobs in non-decreasing submit_time order");
     }
     const timeout_t stored_limit =
         checked_streaming_limit(requests[i].limit_time);
@@ -2055,6 +2106,10 @@ void BasicSimulation<TraceType>::submit_job(job_no_t job_idx,
 
   m_scheduler->insert_job(job_idx, submit_time, run_time_estimate, nodes);
   ++m_pending_queue_arrivals[submit_time];
+  m_latest_submit_time = std::max(m_latest_submit_time, submit_time);
+  // Counted here, after the scheduler accepted it, so rejected jobs above
+  // are excluded. Starts are counted separately in m_jobs_started.
+  m_jobs_submitted++;
 }
 
 template <typename TraceType>
@@ -2199,7 +2254,7 @@ void BasicSimulation<TraceType>::advance_to_impl(
         m_running_jobs[job] = {m_current_time,
                                static_cast<tdiff_t>(record.get_limit_time()),
                                record.get_num_nodes()};
-        m_jobs_submitted++;
+        m_jobs_started++;
 
         // Records a resource-history sample internally (Trace's own
         // Context, via process_events_until()) - no separate call needed.
@@ -2407,7 +2462,7 @@ void BasicSimulation<TraceType>::advance_to_impl(
           m_running_jobs[job] = {m_current_time,
                                  static_cast<tdiff_t>(record.get_limit_time()),
                                  record.get_num_nodes()};
-          m_jobs_submitted++;
+          m_jobs_started++;
 
           // Process this START event - records a resource-history
           // sample internally (Trace's own Context).
@@ -2542,6 +2597,7 @@ BasicSimulation<TraceType>::get_statistics() const {
 
   // Basic counters
   stats.jobs_submitted = m_jobs_submitted;
+  stats.jobs_started = m_jobs_started;
   stats.jobs_completed = m_jobs_completed;
   stats.jobs_running = m_running_jobs.size();
   stats.jobs_waiting = m_scheduler->active_job_count();

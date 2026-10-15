@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 
 #include "common.hpp"
@@ -42,7 +43,15 @@ int process_trace(const dr_evt::Trace_Params &cfg) {
   std::cout << std::to_string(trace.data().size()) +
                    " jobs have been loaded.\n";
   trace.set_resource_history_capacity(cfg.get_resource_history_capacity());
-  trace.run_job_trace(cfg.get_resource_trace(), cfg.get_total_nodes());
+  // Inclusive event-time boundary, exactly as the simulator applies its
+  // own --max_time in Simulation::run(): events at or before the limit
+  // are processed, later ones are not. --max_time used to be parsed but
+  // never passed here.
+  const sim_time_t run_limit = cfg.is_max_time_set()
+                                   ? cfg.get_max_time()
+                                   : std::numeric_limits<sim_time_t>::max();
+  trace.run_job_trace(cfg.get_resource_trace(), cfg.get_total_nodes(),
+                      run_limit);
 
   std::cout << "Trace ";
   trace.print_span(std::cout);

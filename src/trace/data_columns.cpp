@@ -200,6 +200,14 @@ bool Data_Columns::check_header(const std::string &fname) {
 
   std::string line;
   std::getline(ifs, line); // Read the header line
+  // Drop a UTF-8 byte-order mark (EF BB BF). Excel and some Windows editors
+  // write one; left in place it becomes part of the first column name and
+  // the required column is reported as missing.
+  if (line.size() >= 3 && static_cast<unsigned char>(line[0]) == 0xEF &&
+      static_cast<unsigned char>(line[1]) == 0xBB &&
+      static_cast<unsigned char>(line[2]) == 0xBF) {
+    line.erase(0, 3);
+  }
   std::istringstream header(line);
   std::vector<std::string> col_names;
 
