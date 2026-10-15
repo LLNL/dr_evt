@@ -606,21 +606,33 @@ public:
    * @param[in] target_time Exclusive upper time bound as sim_time_t.
    */
   void run_until_exclusive(sim_time_t target_time) {
-    // Advance to just before target_time
-    // Events at exactly target_time will not be processed
-    if (target_time > m_current_time) {
-      // Find the last event time < target_time
-      sim_time_t advance_time = m_current_time;
-      for (const auto &evt : m_event_queue) {
-        const auto &ts = evt.get_time();
-        sim_time_t evt_time = static_cast<sim_time_t>(ts.first) + ts.second;
-        if (evt_time < target_time && evt_time > advance_time) {
-          advance_time = evt_time;
-        }
+    // Process every pending event with time < target_time, leaving events
+    // at exactly target_time for a later advance_to(). Pending work lives
+    // in three places: the trace's start/end event queue, the scheduler's
+    // future arrivals (appended jobs), and the capacity schedule. This
+    // used to scan m_event_queue, which nothing populates outside of
+    // checkpoint I/O, so it never advanced at all.
+    if (target_time <= m_current_time) {
+      return;
+    }
+    sim_time_t previous = -std::numeric_limits<sim_time_t>::infinity();
+    while (true) {
+      m_scheduler->sync_to(m_current_time); // get_next_arrival_time() needs it
+      sim_time_t next = m_scheduler->get_next_arrival_time();
+      if (!m_trace.pending_events().empty()) {
+        const auto &ts = m_trace.pending_events().begin()->get_time();
+        next = std::min(next, static_cast<sim_time_t>(ts.first) + ts.second);
       }
-      if (advance_time > m_current_time) {
-        advance_to(advance_time);
+      if (m_next_capacity_change < m_capacity_changes.size()) {
+        next = std::min(next, m_capacity_changes[m_next_capacity_change].time);
       }
+      // Stop at the first event at or after the target, or if no progress
+      // was made (defensive; advance_to() consumes everything <= next).
+      if (next >= target_time || next <= previous) {
+        break;
+      }
+      previous = next;
+      advance_to(next);
     }
   }
 
