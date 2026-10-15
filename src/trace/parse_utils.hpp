@@ -36,6 +36,14 @@ void set_by(epoch_t &t, const std::string &str);
  * @param[in] str Input text.
  * @param[in] encoding Encoding detected once for the containing input. */
 void set_by(epoch_t &t, const std::string &str, TimestampEncoding encoding);
+/** @brief Parse a non-negative integer, rejecting a sign, trailing text, and
+ * values above @p max.
+ * @param[in] str Input text.
+ * @param[in] max Largest accepted value, normally the destination type's max.
+ * @return The parsed value.
+ * @throws std::invalid_argument on any malformed or out-of-range input. */
+unsigned long long parse_unsigned(const std::string &str,
+                                  unsigned long long max);
 /** @brief Parse an unsigned integer. @param[out] v Parsed value. @param[in] str
  * Input text. */
 void set_by(unsigned &v, const std::string &str);
