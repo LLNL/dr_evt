@@ -84,6 +84,13 @@ inline std::string trim(const std::string &str) { return trim(str, " \t"); }
 std::vector<substr_pos_t> comma_separate(const std::string &str);
 
 /**
+ * @brief Split a line on runs of spaces and tabs (SWF and similar formats).
+ * @param[in] str Whitespace-separated input line.
+ * @return Half-open [start, end) ranges for each non-empty token.
+ */
+std::vector<substr_pos_t> whitespace_separate(const std::string &str);
+
+/**
  * @brief Replace delimiter commas occurring inside quoted CSV fields.
  *
  *  This is a data-specific helper routine.

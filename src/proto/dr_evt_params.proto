@@ -116,6 +116,9 @@ message DR_EVT_Params {
         // Progressive loading also checkpoints at each input-file boundary.
         string checkpoint_file = 34;
         uint64 checkpoint_interval_jobs = 35;
+        // SWF input only: processors per node used to convert allocated
+        // processors to nodes. 0 derives it from the file header.
+        uint32 cores_per_node = 36;
     }
 
     message Tracing_Params {

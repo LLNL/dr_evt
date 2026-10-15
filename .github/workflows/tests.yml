@@ -253,7 +253,7 @@ jobs:
       - name: Run Core CTest Tests
         id: core-ctest
         run: |
-          echo "Running 18 native CTest registrations, the trace-tools test, plus MPI when available"
+          echo "Running 19 native CTest registrations, the trace-tools test, plus MPI when available"
           cd build
           ctest --output-on-failure
 
@@ -349,7 +349,7 @@ jobs:
           echo "  Resource History (5 tests): ${{ steps.resource-history.outcome }}"
           echo "  Job Store (6 tests): ${{ steps.job-store.outcome }}"
           echo "  Config (14 tests): ${{ steps.config.outcome }}"
-          echo "  CTest (18 native + trace tools + MPI when available): ${{ steps.core-ctest.outcome }}"
+          echo "  CTest (19 native + trace tools + MPI when available): ${{ steps.core-ctest.outcome }}"
           echo "  Python API (19 tests): ${{ steps.python-api.outcome }}"
           echo "  Market Package (12 tests): ${{ steps.market-package.outcome }}"
           echo "  Append-Job (23 C++ + 5 optional gRPC checks): ${{ steps.append-job.outcome }}"

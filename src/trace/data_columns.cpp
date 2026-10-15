@@ -79,6 +79,16 @@ Data_Columns::Data_Columns(const std::string &format)
         {7, "actual_run_time"} // File column 7 -> Job_Record field 6 (optional)
     };
     m_col_to_avoid = ""; // No problematic columns in simple format
+  } else if (format == "swf") {
+    // Standard Workload Format: no header row and whitespace-separated
+    // fields, parsed by Swf_Trace_Policy::load_records(). This list only
+    // names the canonical fields that loader fills; the indices are unused.
+    m_cols_to_read = {{4, "num_nodes"},
+                      {1, "job_submit_time"},
+                      {14, "q_id"},
+                      {8, "time_limit"},
+                      {3, "actual_run_time"}};
+    m_col_to_avoid = "";
   } else {
     // Lassen format (default)
     m_cols_to_read = {{11, "num_nodes"}, {23, "begin_time"},
@@ -111,6 +121,16 @@ Data_Columns::Data_Columns(const std::string &format,
                       {2, "end_time"},       {0, "job_submit_time"},
                       {5, "queue"},          {6, "time_limit"},
                       {7, "actual_run_time"}};
+    m_col_to_avoid = "";
+  } else if (format == "swf") {
+    // Standard Workload Format: no header row and whitespace-separated
+    // fields, parsed by Swf_Trace_Policy::load_records(). This list only
+    // names the canonical fields that loader fills; the indices are unused.
+    m_cols_to_read = {{4, "num_nodes"},
+                      {1, "job_submit_time"},
+                      {14, "q_id"},
+                      {8, "time_limit"},
+                      {3, "actual_run_time"}};
     m_col_to_avoid = "";
   } else {
     // Lassen format
@@ -187,6 +207,19 @@ void Data_Columns::init() {
 bool Data_Columns::check_header(const std::string &fname) {
   if (fname.empty()) {
     return false;
+  }
+  if (m_trace_format == "swf") {
+    // SWF files carry no column header; Swf_Trace_Policy::load_records()
+    // parses the ';' metadata lines itself. SWF describes submissions only
+    // (no begin/end times), so this is always simulation mode, and the
+    // loader assigns every record a queue id.
+    m_trace_mode = TraceMode::SIMULATION;
+#if DR_EVT_LEGACY_QUEUE_INPUT
+    m_has_queue_column = true;
+#else
+    m_has_q_id_column = true;
+#endif
+    return true;
   }
 
   std::ifstream ifs(fname);

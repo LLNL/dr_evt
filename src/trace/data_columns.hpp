@@ -137,6 +137,25 @@ public:
 #else
   /// True when default trace input explicitly supplied a `q_id` column.
   bool has_q_id_column() const { return m_has_q_id_column; }
+
+  /// @brief Input-file layout name ("simple", "lassen", or "swf").
+  const std::string &get_trace_format() const { return m_trace_format; }
+
+  /** @brief Override the processors-per-node divisor used by the SWF loader.
+   *  @param[in] cores 0 derives it from the SWF header (MaxProcs/MaxNodes). */
+  void set_cores_per_node(unsigned cores) { m_cores_per_node_override = cores; }
+  /// @brief Requested override, 0 when the header value should be used.
+  unsigned cores_per_node_override() const { return m_cores_per_node_override; }
+  /// @brief Divisor the last SWF load actually used.
+  unsigned swf_cores_per_node() const { return m_swf_cores_per_node; }
+  /// @brief Records the last SWF load skipped (processors or run time <= 0).
+  num_jobs_t swf_skipped_records() const { return m_swf_skipped; }
+  /** @brief Record what an SWF load used. Const because the loader receives
+   *  a const Data_Columns; these are diagnostics, not parsing state. */
+  void note_swf_load(unsigned cores_per_node, num_jobs_t skipped) const {
+    m_swf_cores_per_node = cores_per_node;
+    m_swf_skipped = skipped;
+  }
 #endif
 
 protected:
@@ -152,6 +171,12 @@ protected:
 
   /// Trace mode (replay or simulation) detected from columns
   TraceMode m_trace_mode;
+  /// SWF only: user-requested processors per node (0 = derive from header).
+  unsigned m_cores_per_node_override = 0u;
+  /// SWF only: divisor used by the last load (diagnostic).
+  mutable unsigned m_swf_cores_per_node = 1u;
+  /// SWF only: records skipped by the last load (diagnostic).
+  mutable num_jobs_t m_swf_skipped = static_cast<num_jobs_t>(0u);
 };
 
 /**@}*/

@@ -11,6 +11,7 @@
 
 #include "params/sim_params.hpp"
 #include "trace/parse_utils.hpp"
+#include "trace/trace_policy.hpp"
 #include "utils/file.hpp"
 #include <cmath>
 #include <cstdlib>
@@ -36,6 +37,7 @@ static constexpr int OPT_REDIS_URI = 1005;
 static constexpr int OPT_REDIS_KEY_PREFIX = 1006;
 static constexpr int OPT_CHECKPOINT_FILE = 1007;
 static constexpr int OPT_CHECKPOINT_INTERVAL_JOBS = 1008;
+static constexpr int OPT_CORES_PER_NODE = 1009;
 
 /** @brief getopt short-option specification for the simulator CLI. */
 #define OPTIONS "hi:j:n:o:s:t:b:p:q:Q:A:G:r:f:T:z:D:S:V:vc:R:MK:W:H:L:m:"
@@ -64,6 +66,7 @@ static const struct option sim_longopts[] = {
     {"check_memory_pressure", required_argument, 0, 'm'},
     {"resource_history_capacity", required_argument, 0, 'H'},
     {"trace_type", required_argument, 0, OPT_TRACE_TYPE},
+    {"cores_per_node", required_argument, 0, OPT_CORES_PER_NODE},
     {"trace_format", required_argument, 0, 'f'},
     {"timestamp_format", required_argument, 0, 'T'},
     {"timezone", required_argument, 0, 'z'},
@@ -96,7 +99,8 @@ Sim_Params::Sim_Params()
       m_job_flush_interval(0), m_checkpoint_interval_jobs(0),
       m_memory_pressure_fraction(0.0),
       m_resource_history_capacity(0), m_total_nodes(dr_evt::total_nodes),
-      m_trace_type(TraceType::STANDARD),
+      m_trace_type(TraceType::STANDARD), m_cores_per_node(0u),
+      m_is_nodes_set(false),
       m_trace_format("simple"),    // Default to simple format
       m_timestamp_format("epoch"), // Retained timestamp compatibility value
       m_timezone("America/Los_Angeles"),    // Default timezone
@@ -204,6 +208,7 @@ void Sim_Params::getopt(int &argc, char **&argv) {
     case 'n': /* --total_nodes */
       m_total_nodes = static_cast<num_nodes_t>(parse_uint(
           "--total_nodes", std::numeric_limits<num_nodes_t>::max()));
+      m_is_nodes_set = true;
       break;
     case OPT_CAPACITY_SCHEDULE: /* --capacity_schedule */
       m_capacity_schedule = std::string(optarg);
@@ -395,12 +400,21 @@ void Sim_Params::getopt(int &argc, char **&argv) {
         m_trace_type = TraceType::STANDARD;
       } else if (type == "pcon") {
         m_trace_type = TraceType::PCON;
+      } else if (type == "swf") {
+        // SWF has its own parser; the column-layout format must follow.
+        m_trace_type = TraceType::SWF;
+        m_trace_format = "swf";
       } else {
         std::cerr << "Unknown trace type: " << type << std::endl;
-        std::cerr << "Valid options: 'standard' (default), 'pcon'" << std::endl;
+        std::cerr << "Valid options: 'standard' (default), 'pcon', 'swf'"
+                  << std::endl;
         print_usage(argv[0], 1);
       }
     } break;
+    case OPT_CORES_PER_NODE: /* --cores_per_node */
+      m_cores_per_node = static_cast<unsigned>(
+          parse_uint("--cores_per_node", std::numeric_limits<unsigned>::max()));
+      break;
     case 'f': /* --trace_format */
     {
       std::string format(optarg);
@@ -408,6 +422,11 @@ void Sim_Params::getopt(int &argc, char **&argv) {
         m_trace_format = "lassen";
       } else if (format == "simple" || format == "lassen") {
         m_trace_format = format;
+      } else if (format == "swf") {
+        // The SWF parser lives in its own trace policy, so the data model
+        // follows the format (and vice versa, see --trace_type).
+        m_trace_format = format;
+        m_trace_type = TraceType::SWF;
       } else {
         std::cerr << "Unknown trace format: " << format << std::endl;
         print_usage(argv[0], 1);
@@ -577,6 +596,36 @@ void Sim_Params::getopt(int &argc, char **&argv) {
     print_usage(argv[0], 1);
   }
 
+  if ((m_trace_type == TraceType::SWF) != (m_trace_format == "swf")) {
+    std::cerr << "Error: --trace_type swf and --trace_format swf go together; "
+                 "SWF input has its own parser and cannot be combined with "
+                 "the simple or lassen column layouts"
+              << std::endl;
+    print_usage(argv[0], 1);
+  }
+  if (m_cores_per_node != 0u && m_trace_type != TraceType::SWF) {
+    std::cerr << "Error: --cores_per_node applies to SWF input only"
+              << std::endl;
+    print_usage(argv[0], 1);
+  }
+
+  // The built-in default of dr_evt::total_nodes (795) is a historical Lassen
+  // value. An SWF header describes its own machine, so use MaxNodes from it
+  // unless the size was given explicitly.
+  if (m_trace_type == TraceType::SWF && !m_is_nodes_set) {
+    const unsigned header_nodes = Swf_Trace_Policy::header_max_nodes(m_infile);
+    if (header_nodes > 0u) {
+      m_total_nodes = static_cast<num_nodes_t>(header_nodes);
+      std::cerr << "SWF: total_nodes not given; using MaxNodes from the "
+                   "header: "
+                << header_nodes << std::endl;
+    } else {
+      std::cerr << "SWF: total_nodes not given and the header has no "
+                   "MaxNodes; using the built-in default of "
+                << m_total_nodes << std::endl;
+    }
+  }
+
   if (!m_is_jobs_set && m_is_time_set) {
     m_max_jobs = std::numeric_limits<decltype(m_max_jobs)>::max();
   }
@@ -619,7 +668,9 @@ void Sim_Params::print_usage(const std::string exec, int code) {
          "        Specify the maximum number of jobs to run.\n"
          "\n"
          "    -n, --total_nodes\n"
-         "        Specify total number of nodes in the system (default: 795).\n"
+         "        Specify total number of nodes in the system (default: 795,\n"
+         "        a historical Lassen value). For SWF input the default is\n"
+         "        the header's MaxNodes when present.\n"
          "\n"
          "    --capacity_schedule FILENAME\n"
          "        CSV change points with columns time,total_nodes. Capacity\n"
@@ -764,16 +815,28 @@ void Sim_Params::print_usage(const std::string exec, int code) {
          "        immediately safe to reclaim, so reclaiming on a full buffer\n"
          "        always succeeds.\n"
          "\n"
-         "    --trace_type {standard|pcon}\n"
+         "    --trace_type {standard|pcon|swf}\n"
          "        Job-trace data model (default: standard).\n"
          "        standard: standard job records and resource-history "
          "samples.\n"
-         "        pcon: experimental records with avgpcon, minpcon, and\n"
+         "        pcon: records with avgpcon, minpcon, and\n"
          "        maxpcon stored inline in each Pcon job record.\n"
+         "        swf: Standard Workload Format (Parallel Workloads Archive):\n"
+         "        18 whitespace-separated fields, ';' header lines, no column\n"
+         "        row. Records with processors or run time <= 0 are skipped;\n"
+         "        nodes = ceil(allocated processors / cores_per_node);\n"
+         "        time_limit = requested time, or run time when missing;\n"
+         "        submit = UnixStartTime + relative time when the header\n"
+         "        provides it. Implies --trace_format swf.\n"
          "        This is independent of --trace_format, which controls the\n"
          "        input-file parser/layout.\n"
          "\n"
-         "    -f, --trace_format {simple|lassen}\n"
+         "    --cores_per_node N\n"
+         "        SWF only: processors per node used to convert allocated\n"
+         "        processors to nodes. 0 (default) derives it from the file\n"
+         "        header as MaxProcs / MaxNodes, or 1 when absent.\n"
+         "\n"
+         "    -f, --trace_format {simple|lassen|swf}\n"
          "        Trace file format (default: simple).\n"
          "        simple: CSV, columns looked up by name in the header row.\n"
          "          Simulation mode (no begin_time/end_time columns): "
@@ -904,11 +967,17 @@ void Sim_Params::print() const {
     msg += "LJF";
   msg += "\n";
 
+  msg += " - cores_per_node: " +
+         (m_cores_per_node == 0u ? std::string("auto (SWF header)")
+                                 : to_string(m_cores_per_node)) +
+         "\n";
   msg += " - trace_type: ";
   if (m_trace_type == TraceType::STANDARD)
     msg += "STANDARD";
-  else
+  else if (m_trace_type == TraceType::PCON)
     msg += "PCON";
+  else
+    msg += "SWF";
   msg += "\n";
 
   msg += " - trace_format: " + m_trace_format + "\n";

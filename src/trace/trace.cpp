@@ -1357,5 +1357,6 @@ std::ostream &BasicTrace<Policy>::print_DAT(std::ostream &os) {
 
 template class BasicTrace<Standard_Trace_Policy>;
 template class BasicTrace<Pcon_Trace_Policy>;
+template class BasicTrace<Swf_Trace_Policy>;
 
 } // end of namespace dr_evt
