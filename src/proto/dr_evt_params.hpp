@@ -30,14 +30,17 @@ namespace dr_evt {
 /** @brief Read protobuf simulation configuration into Sim_Params.
  * @param[in] filename Prototext or binary configuration filename.
  * @param[out] sp Destination simulation parameters.
- * @param[in] verbose true to emit parsing diagnostics. */
+ * @param[in] verbose true to emit parsing diagnostics.
+ * @throws std::runtime_error if the file cannot be opened or parsed, or
+ *         contains unsupported configuration values. */
 void read_proto_params(const std::string &filename, dr_evt::Sim_Params &sp,
                        bool verbose = false);
 
 /** @brief Read protobuf trace-tool configuration into Trace_Params.
  * @param[in] filename Prototext or binary configuration filename.
  * @param[out] sp Destination trace parameters.
- * @param[in] verbose true to emit parsing diagnostics. */
+ * @param[in] verbose true to emit parsing diagnostics.
+ * @throws std::runtime_error if the file cannot be opened or parsed. */
 void read_proto_params(const std::string &filename, dr_evt::Trace_Params &sp,
                        bool verbose = false);
 

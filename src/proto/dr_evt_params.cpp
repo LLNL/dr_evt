@@ -381,7 +381,12 @@ set_trace_options(const dr_evt_proto::DR_EVT_Params::Tracing_Params &cfg,
 void read_proto_params(const std::string &filename, dr_evt::Sim_Params &sp,
                        bool verbose) {
   dr_evt_proto::DR_EVT_Params::Simulation_Params dr_evt_sim_setup;
-  dr_evt::read_prototext(filename, false, dr_evt_sim_setup);
+  // read_prototext() reports the specific problem (missing file, parse
+  // error) on stderr and returns false. Stop here rather than applying an
+  // empty message, which would silently run with default parameters.
+  if (!dr_evt::read_prototext(filename, false, dr_evt_sim_setup)) {
+    throw std::runtime_error("failed to read config file: " + filename);
+  }
 
   if (verbose) {
     std::string str;
@@ -399,7 +404,9 @@ void read_proto_params(const std::string &filename, dr_evt::Sim_Params &sp,
 void read_proto_params(const std::string &filename, dr_evt::Trace_Params &tp,
                        bool verbose) {
   dr_evt_proto::DR_EVT_Params::Tracing_Params dr_evt_trace_setup;
-  dr_evt::read_prototext(filename, false, dr_evt_trace_setup);
+  if (!dr_evt::read_prototext(filename, false, dr_evt_trace_setup)) {
+    throw std::runtime_error("failed to read config file: " + filename);
+  }
 
   if (verbose) {
     std::string str;

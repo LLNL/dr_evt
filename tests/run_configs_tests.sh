@@ -373,6 +373,29 @@ else
     echo "  ✗ an invalid sim_start_time was accepted or misdiagnosed"
     FAIL=$((FAIL + 1))
 fi
+
+# Test 13: a --config file that cannot be read must stop the run. Previously
+# a missing file or a parse error was only printed, and the simulation went
+# on with default parameters and exit status 0.
+echo "Test 13: unreadable config file is rejected"
+UNREADABLE_OK=1
+BAD_CONFIG="$TEST_WORK_DIR/bad_field.pb"
+printf "total_nodez: 5\n" > "$BAD_CONFIG"
+for CFG in "$TEST_WORK_DIR/does_not_exist.pb" "$BAD_CONFIG"; do
+    CFG_LOG="$TEST_WORK_DIR/unreadable_$(basename "$CFG").log"
+    if $SIMULATOR "$TEST_TRACE" --config "$CFG" > "$CFG_LOG" 2>&1; then
+        UNREADABLE_OK=0
+    elif ! grep -q "failed to read config file" "$CFG_LOG"; then
+        UNREADABLE_OK=0
+    fi
+done
+if [ "$UNREADABLE_OK" -eq 1 ]; then
+    echo "  ✓ missing and unparsable config files are rejected with nonzero exit"
+    PASS=$((PASS + 1))
+else
+    echo "  ✗ an unreadable config file was accepted or misdiagnosed"
+    FAIL=$((FAIL + 1))
+fi
 echo ""
 echo "=========================================="
 echo "Results: $PASS passed, $FAIL failed"
