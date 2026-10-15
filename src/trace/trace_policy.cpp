@@ -108,8 +108,13 @@ int Pcon_Trace_Policy::load_records(const std::string &fname,
 
 namespace {
 
-/// Parse one numeric SWF token. -1 is a legal "missing" marker, so this is
-/// a plain double parse that requires the whole token to be consumed.
+/** @brief Parse one numeric SWF token.
+ *  @details -1 is a legal "missing" marker, so this is a plain double parse
+ *  that requires the whole token to be consumed.
+ *  @param[in] token Field text.
+ *  @param[in] line_no Line number for the error message.
+ *  @return The parsed value.
+ *  @throws std::invalid_argument when the token is not a number. */
 double parse_swf_num(const std::string &token, size_t line_no) {
   size_t pos = 0;
   double v = 0.0;
@@ -125,8 +130,13 @@ double parse_swf_num(const std::string &token, size_t line_no) {
   return v;
 }
 
-/// Read "; Key: value" metadata; returns false if the line is not of that
-/// shape. Keys are matched case-insensitively.
+/** @brief Read a "; Key: value" header line.
+ *  @details Keys are matched case-insensitively; only the leading number of
+ *  the value is read.
+ *  @param[in] line Header line including the leading ';'.
+ *  @param[in] key Key to match.
+ *  @param[out] value Parsed number when the line matches.
+ *  @return true when the line carries @p key with a numeric value. */
 bool parse_swf_header_value(const std::string &line, const char *key,
                             double &value) {
   const size_t colon = line.find(':');

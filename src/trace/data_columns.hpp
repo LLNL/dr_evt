@@ -138,20 +138,28 @@ public:
   /// True when default trace input explicitly supplied a `q_id` column.
   bool has_q_id_column() const { return m_has_q_id_column; }
 
-  /// @brief Input-file layout name ("simple", "lassen", or "swf").
+  /** @brief Report the input-file layout name.
+   *  @return "simple", "lassen", or "swf". */
   const std::string &get_trace_format() const { return m_trace_format; }
 
   /** @brief Override the processors-per-node divisor used by the SWF loader.
-   *  @param[in] cores 0 derives it from the SWF header (MaxProcs/MaxNodes). */
+   *  @param[in] cores Processors per node; 0 derives the value from the SWF
+   *         header (MaxProcs / MaxNodes). */
   void set_cores_per_node(unsigned cores) { m_cores_per_node_override = cores; }
-  /// @brief Requested override, 0 when the header value should be used.
+  /** @brief Report the requested processors-per-node override.
+   *  @return The override, or 0 when the header value should be used. */
   unsigned cores_per_node_override() const { return m_cores_per_node_override; }
-  /// @brief Divisor the last SWF load actually used.
+  /** @brief Report the divisor the last SWF load actually used.
+   *  @return Processors per node applied to field 5 of each record. */
   unsigned swf_cores_per_node() const { return m_swf_cores_per_node; }
-  /// @brief Records the last SWF load skipped (processors or run time <= 0).
+  /** @brief Report how many records the last SWF load skipped.
+   *  @return Records with processors or run time <= 0. */
   num_jobs_t swf_skipped_records() const { return m_swf_skipped; }
-  /** @brief Record what an SWF load used. Const because the loader receives
-   *  a const Data_Columns; these are diagnostics, not parsing state. */
+  /** @brief Record what an SWF load used.
+   *  @details Const because the loader receives a const Data_Columns; these
+   *  are diagnostics, not parsing state.
+   *  @param[in] cores_per_node Divisor applied by the load.
+   *  @param[in] skipped Number of records the load skipped. */
   void note_swf_load(unsigned cores_per_node, num_jobs_t skipped) const {
     m_swf_cores_per_node = cores_per_node;
     m_swf_skipped = skipped;
