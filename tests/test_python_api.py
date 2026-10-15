@@ -223,6 +223,11 @@ def test_streaming_api(result):
         assert active[0].start_time == 0.0
         assert active[0].end_time == 100.0
         assert active[1].state == dr_evt.JobState.PENDING
+        # jobs_submitted counts jobs accepted into the queue; jobs_started
+        # counts starts. Three were appended, one has started at t=0.
+        stats = sim.get_statistics()
+        assert stats.jobs_submitted == 3, f"jobs_submitted={stats.jobs_submitted}"
+        assert stats.jobs_started == 1, f"jobs_started={stats.jobs_started}"
         result.record_pass("append_job, status query, and advance_to")
 
         # Test run_until_exclusive: the job at t=25..35 lies strictly before

@@ -61,7 +61,7 @@ timeout_t checked_streaming_limit(tdiff_t limit_time) {
 
 constexpr std::array<char, 8> checkpoint_magic{'D', 'R', 'E', 'V',
                                                'T', 'C', 'K', 'P'};
-constexpr std::uint32_t checkpoint_version = 6;
+constexpr std::uint32_t checkpoint_version = 7; // 7: adds m_jobs_started
 constexpr std::uint64_t checkpoint_collection_limit = 100000000;
 constexpr std::uint64_t checkpoint_string_limit = 64 * 1024 * 1024;
 
@@ -271,7 +271,7 @@ BasicSimulation<TraceType>::BasicSimulation(Sim_Params params)
                                                 m_params.m_total_nodes)),
       m_next_capacity_change(0), m_current_capacity(m_params.m_total_nodes),
       m_capacity_area(0.0), m_capacity_area_time(0.0), m_jobs_completed(0),
-      m_jobs_submitted(0), m_next_progressive_file(0),
+      m_jobs_submitted(0), m_jobs_started(0), m_next_progressive_file(0),
       m_checkpoint_loaded(false), m_last_automatic_checkpoint_jobs(0),
       m_has_automatic_checkpoint(false),
       m_last_automatic_checkpoint_time(0.0),
@@ -300,7 +300,7 @@ BasicSimulation<TraceType>::BasicSimulation(Sim_Params params,
                                                 m_params.m_total_nodes)),
       m_next_capacity_change(0), m_current_capacity(m_params.m_total_nodes),
       m_capacity_area(0.0), m_capacity_area_time(0.0), m_jobs_completed(0),
-      m_jobs_submitted(0), m_next_progressive_file(0),
+      m_jobs_submitted(0), m_jobs_started(0), m_next_progressive_file(0),
       m_checkpoint_loaded(false), m_last_automatic_checkpoint_jobs(0),
       m_has_automatic_checkpoint(false),
       m_last_automatic_checkpoint_time(0.0),
@@ -323,7 +323,7 @@ BasicSimulation<TraceType>::BasicSimulation(
                                                 m_params.m_total_nodes)),
       m_next_capacity_change(0), m_current_capacity(m_params.m_total_nodes),
       m_capacity_area(0.0), m_capacity_area_time(0.0), m_jobs_completed(0),
-      m_jobs_submitted(0), m_next_progressive_file(0),
+      m_jobs_submitted(0), m_jobs_started(0), m_next_progressive_file(0),
       m_checkpoint_loaded(false), m_last_automatic_checkpoint_jobs(0),
       m_has_automatic_checkpoint(false),
       m_last_automatic_checkpoint_time(0.0),
@@ -388,6 +388,8 @@ template <typename TraceType> void BasicSimulation<TraceType>::run() {
     if (m_params.m_verbose) {
       std::cout << "Simulation complete\n" + std::string("Jobs submitted: ") +
                        std::to_string(m_jobs_submitted) + "\n" +
+                       std::string("Jobs started: ") +
+                       std::to_string(m_jobs_started) + "\n" +
                        std::string("Jobs completed: ") +
                        std::to_string(m_jobs_completed) + "\n";
     }
@@ -476,6 +478,8 @@ template <typename TraceType> void BasicSimulation<TraceType>::run() {
   if (m_params.m_verbose) {
     std::cout << "Simulation complete\n" + std::string("Jobs submitted: ") +
                      std::to_string(m_jobs_submitted) + "\n" +
+                     std::string("Jobs started: ") +
+                     std::to_string(m_jobs_started) + "\n" +
                      std::string("Jobs completed: ") +
                      std::to_string(m_jobs_completed) + "\n";
   }
@@ -492,6 +496,7 @@ void BasicSimulation<TraceType>::print_stats(std::ostream &os) const {
   }
   os << std::endl;
   os << "Jobs submitted: " << m_jobs_submitted << std::endl;
+  os << "Jobs started: " << m_jobs_started << std::endl;
   // m_trace.completed_count() (populated via write_job_line(), called
   // both at reclaim time and by write_simulated_trace()'s final
   // flush - already run by the time this is called, see sim.cpp's
@@ -573,6 +578,7 @@ num_jobs_t BasicSimulation<TraceType>::initialize_trace(num_jobs_t max_jobs) {
   m_current_time = 0.0;
   reset_capacity_schedule();
   m_jobs_submitted = 0;
+  m_jobs_started = 0;
   m_jobs_completed = 0;
   m_pre_start_jobs = 0;
   m_warm_resource_area = 0.0;
@@ -755,6 +761,7 @@ void BasicSimulation<TraceType>::run_progressive() {
     m_current_time = 0.0;
     reset_capacity_schedule();
     m_jobs_submitted = 0;
+    m_jobs_started = 0;
     m_jobs_completed = 0;
     m_next_progressive_file = 0;
     m_last_automatic_checkpoint_jobs = 0;
@@ -1065,6 +1072,7 @@ void BasicSimulation<TraceType>::save_checkpoint(std::ostream &output) {
     writer.value(m_capacity_area_time);
     writer.value(m_jobs_completed);
     writer.value(m_jobs_submitted);
+    writer.value(m_jobs_started);
     writer.value(static_cast<std::uint64_t>(m_next_progressive_file));
     writer.value(m_last_automatic_checkpoint_jobs);
     writer.value(m_has_automatic_checkpoint);
@@ -1371,6 +1379,7 @@ void BasicSimulation<TraceType>::load_checkpoint(std::istream &input) {
     m_capacity_area_time = reader.value<sim_time_t>();
     m_jobs_completed = reader.value<num_jobs_t>();
     m_jobs_submitted = reader.value<num_jobs_t>();
+    m_jobs_started = reader.value<num_jobs_t>();
     m_next_progressive_file = reader.count();
     if (m_next_progressive_file > m_params.m_infile_list_parsed.size()) {
       throw std::runtime_error(
@@ -2060,6 +2069,9 @@ void BasicSimulation<TraceType>::submit_job(job_no_t job_idx,
 
   m_scheduler->insert_job(job_idx, submit_time, run_time_estimate, nodes);
   ++m_pending_queue_arrivals[submit_time];
+  // Counted here, after the scheduler accepted it, so rejected jobs above
+  // are excluded. Starts are counted separately in m_jobs_started.
+  m_jobs_submitted++;
 }
 
 template <typename TraceType>
@@ -2204,7 +2216,7 @@ void BasicSimulation<TraceType>::advance_to_impl(
         m_running_jobs[job] = {m_current_time,
                                static_cast<tdiff_t>(record.get_limit_time()),
                                record.get_num_nodes()};
-        m_jobs_submitted++;
+        m_jobs_started++;
 
         // Records a resource-history sample internally (Trace's own
         // Context, via process_events_until()) - no separate call needed.
@@ -2412,7 +2424,7 @@ void BasicSimulation<TraceType>::advance_to_impl(
           m_running_jobs[job] = {m_current_time,
                                  static_cast<tdiff_t>(record.get_limit_time()),
                                  record.get_num_nodes()};
-          m_jobs_submitted++;
+          m_jobs_started++;
 
           // Process this START event - records a resource-history
           // sample internally (Trace's own Context).
@@ -2547,6 +2559,7 @@ BasicSimulation<TraceType>::get_statistics() const {
 
   // Basic counters
   stats.jobs_submitted = m_jobs_submitted;
+  stats.jobs_started = m_jobs_started;
   stats.jobs_completed = m_jobs_completed;
   stats.jobs_running = m_running_jobs.size();
   stats.jobs_waiting = m_scheduler->active_job_count();

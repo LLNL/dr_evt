@@ -361,6 +361,9 @@ message GetStatisticsResponse {
     double avg_run_time = 14;
     // Mean max(1, turnaround / max(run_time, 10 seconds)).
     double avg_bounded_slowdown = 15;
+    // Jobs that have begun execution. jobs_submitted counts jobs accepted
+    // into the wait queue; before this field existed it counted starts.
+    uint64 jobs_started = 16;
 }
 
 message GetTraceSizeResponse {

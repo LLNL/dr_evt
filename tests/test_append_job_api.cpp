@@ -478,6 +478,9 @@ void test_exclusive_vs_inclusive() {
   // and leave the clock at t=5. A no-op implementation (which this once
   // was) would leave the clock at 0 and never run the job.
   [[maybe_unused]] job_no_t j1 = sim.append_job(2.0, 5, kTestQueueInput, 3);
+  // Two jobs accepted, one started so far: the counters must differ here.
+  assert(sim.get_statistics().jobs_submitted == 2);
+  assert(sim.get_statistics().jobs_started == 1);
   sim.run_until_exclusive(10.0);
   assert(sim.get_current_time() == 5.0);
   assert(sim.get_nodes_in_use() == 10);
