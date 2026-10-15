@@ -87,7 +87,8 @@ protected:
 
   /// Counters
   num_jobs_t m_jobs_completed;
-  num_jobs_t m_jobs_submitted; ///< Jobs submitted during the current run.
+  num_jobs_t m_jobs_submitted; ///< Jobs accepted into the wait queue.
+  num_jobs_t m_jobs_started;   ///< Jobs that began execution.
   /// Next progressive input file; advanced once its jobs are fully admitted.
   size_t m_next_progressive_file;
   /// True after load_checkpoint() restores runnable state.
@@ -564,7 +565,8 @@ public:
    * @return Structure with wait times, turnaround, utilization
    */
   struct Statistics {
-    num_jobs_t jobs_submitted;   ///< Jobs submitted since initialization.
+    num_jobs_t jobs_submitted;   ///< Jobs accepted into the wait queue.
+    num_jobs_t jobs_started;     ///< Jobs that have begun execution.
     num_jobs_t jobs_completed;   ///< Jobs that have completed execution.
     num_jobs_t jobs_running;     ///< Jobs executing at the snapshot time.
     num_jobs_t jobs_waiting;     ///< Jobs awaiting scheduler placement.

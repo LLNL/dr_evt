@@ -156,8 +156,8 @@ contains `time` and `nodes_released`.
 
 `Statistics` exposes:
 
-- `jobs_submitted`, `jobs_completed`, `jobs_running`, and
-  `jobs_waiting`;
+- `jobs_submitted` (jobs accepted into the wait queue), `jobs_started`,
+  `jobs_completed`, `jobs_running`, and `jobs_waiting`;
 - `current_time`, `total_nodes`, `nodes_in_use`, and
   `nodes_available`; and
 - `resource_area`, `utilization`, `avg_wait_time`, `avg_run_time`,

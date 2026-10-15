@@ -80,6 +80,7 @@ std::string make_session_id(const std::string &session_name) {
 void copy_statistics(const dr_evt::Simulation::Statistics &statistics,
                      GetStatisticsResponse *response) {
   response->set_jobs_submitted(statistics.jobs_submitted);
+  response->set_jobs_started(statistics.jobs_started);
   response->set_jobs_completed(statistics.jobs_completed);
   response->set_jobs_running(statistics.jobs_running);
   response->set_jobs_waiting(statistics.jobs_waiting);
@@ -108,6 +109,7 @@ void write_statistics_file(const std::string &filename,
   }
   output << "{\n"
          << "  \"jobs_submitted\": " << statistics.jobs_submitted << ",\n"
+         << "  \"jobs_started\": " << statistics.jobs_started << ",\n"
          << "  \"jobs_completed\": " << statistics.jobs_completed << ",\n"
          << "  \"jobs_running\": " << statistics.jobs_running << ",\n"
          << "  \"jobs_waiting\": " << statistics.jobs_waiting << ",\n"
