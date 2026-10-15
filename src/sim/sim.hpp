@@ -94,6 +94,8 @@ protected:
   /// submit time would be held until this time; such appends are
   /// rejected instead.
   sim_time_t m_latest_submit_time;
+  /// Configuration recorded in the checkpoint most recently restored.
+  std::optional<Sim_Params> m_restored_params;
   /// Next progressive input file; advanced once its jobs are fully admitted.
   size_t m_next_progressive_file;
   /// True after load_checkpoint() restores runnable state.
@@ -607,6 +609,16 @@ public:
    * state.
    */
   Statistics get_statistics() const;
+
+  /**
+   * @brief Report the configuration recorded in the last restored checkpoint.
+   * @details The simulation keeps running with its own parameters; this is
+   * the complete Sim_Params of the run that wrote the checkpoint.
+   * @return The recorded configuration, or empty if none was loaded.
+   */
+  const std::optional<Sim_Params> &restored_params() const {
+    return m_restored_params;
+  }
 
   /**
    * @brief Run until just before a target time.

@@ -58,6 +58,75 @@ enum class TraceType {
 /** @brief Complete configuration for a Simulation run or streaming session. */
 class Sim_Params {
 public:
+
+  /**
+   * @brief Apply a visitor to every configuration field, in a fixed order.
+   * @details Used by the checkpoint code to record and restore the complete
+   * configuration. Every data member of this class must appear here; keep
+   * this list in step with the declarations below.
+   * @tparam Visitor Callable as `visit(const char *name, Field &field)`.
+   * @param[in,out] visit Visitor invoked once per field.
+   */
+  template <typename Visitor> void visit_fields(Visitor &visit) {
+    visit_fields_impl(*this, visit);
+  }
+  /** @copydoc visit_fields */
+  template <typename Visitor> void visit_fields(Visitor &visit) const {
+    visit_fields_impl(*this, visit);
+  }
+
+private:
+  /** @brief Shared body of both visit_fields() overloads.
+   *  @tparam Self `Sim_Params` or `const Sim_Params`.
+   *  @tparam Visitor Callable as `visit(const char *name, Field &field)`.
+   *  @param[in,out] self Object whose fields are visited.
+   *  @param[in,out] visit Visitor invoked once per field. */
+  template <typename Self, typename Visitor>
+  static void visit_fields_impl(Self &self, Visitor &visit) {
+    visit("seed", self.m_seed);
+    visit("max_jobs", self.m_max_jobs);
+    visit("max_time", self.m_max_time);
+    visit("sim_start_time", self.m_sim_start_time);
+    visit("infile", self.m_infile);
+    visit("infile_list", self.m_infile_list);
+    visit("infile_list_parsed", self.m_infile_list_parsed);
+    visit("is_jobs_set", self.m_is_jobs_set);
+    visit("is_time_set", self.m_is_time_set);
+    visit("is_nodes_set", self.m_is_nodes_set);
+    visit("backfill_policy", self.m_backfill_policy);
+    visit("num_max_candidates", self.m_num_max_candidates);
+    visit("priority_policy", self.m_priority_policy);
+    visit("queue_impl", self.m_queue_impl);
+    visit("block_size", self.m_block_size);
+    visit("wait_queue_capacity", self.m_wait_queue_capacity);
+    visit("wait_queue_overflow", self.m_wait_queue_overflow);
+    visit("job_store_capacity", self.m_job_store_capacity);
+    visit("job_store_overflow", self.m_job_store_overflow);
+    visit("job_flush_interval", self.m_job_flush_interval);
+    visit("checkpoint_file", self.m_checkpoint_file);
+    visit("checkpoint_interval_jobs", self.m_checkpoint_interval_jobs);
+    visit("memory_pressure_fraction", self.m_memory_pressure_fraction);
+    visit("resource_history_capacity", self.m_resource_history_capacity);
+    visit("total_nodes", self.m_total_nodes);
+    visit("capacity_schedule", self.m_capacity_schedule);
+    visit("trace_type", self.m_trace_type);
+    visit("cores_per_node", self.m_cores_per_node);
+    visit("trace_format", self.m_trace_format);
+    visit("timestamp_format", self.m_timestamp_format);
+    visit("timezone", self.m_timezone);
+    visit("run_time_mode", self.m_run_time_mode);
+    visit("run_time_distribution", self.m_run_time_distribution);
+    visit("run_time_scale", self.m_run_time_scale);
+    visit("run_time_stddev", self.m_run_time_stddev);
+    visit("verbose", self.m_verbose);
+    visit("msec_output", self.m_msec_output);
+    visit("redis_uri", self.m_redis_uri);
+    visit("redis_key_prefix", self.m_redis_key_prefix);
+    visit("outfile", self.m_outfile);
+    visit("resource_trace", self.m_resource_trace);
+  }
+
+public:
   /** @brief Construct parameters with project defaults. */
   Sim_Params();
   /** @brief Parse and consume simulation command-line options.

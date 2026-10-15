@@ -61,7 +61,7 @@ timeout_t checked_streaming_limit(tdiff_t limit_time) {
 
 constexpr std::array<char, 8> checkpoint_magic{'D', 'R', 'E', 'V',
                                                'T', 'C', 'K', 'P'};
-constexpr std::uint32_t checkpoint_version = 9; // 9: SWF trace kind/records
+constexpr std::uint32_t checkpoint_version = 10; // 10: full Sim_Params
 
 /// Trace policy identifier stored in a checkpoint so a file written by one
 /// trace type is not restored into another.
@@ -174,6 +174,52 @@ public:
 
 private:
   ser20::BinaryInputArchive m_archive;
+};
+
+/** @brief Sim_Params field visitor that archives each field in order. */
+struct ParamsFieldWriter {
+  CheckpointWriter &writer; ///< Destination archive.
+  /** @brief Archive one configuration field.
+   *  @tparam T Field type: enum, string, string vector, or scalar.
+   *  @param[in] field Field value. */
+  template <typename T> void operator()(const char *, const T &field) {
+    if constexpr (std::is_enum_v<T>) {
+      writer.enumeration(field);
+    } else if constexpr (std::is_same_v<T, std::string>) {
+      writer.string(field);
+    } else if constexpr (std::is_same_v<T, std::vector<std::string>>) {
+      writer.value(static_cast<std::uint64_t>(field.size()));
+      for (const auto &item : field) {
+        writer.string(item);
+      }
+    } else {
+      writer.value(field);
+    }
+  }
+};
+
+/** @brief Sim_Params field visitor that restores each field in order. */
+struct ParamsFieldReader {
+  CheckpointReader &reader; ///< Source archive.
+  /** @brief Restore one configuration field.
+   *  @tparam T Field type: enum, string, string vector, or scalar.
+   *  @param[out] field Field to assign. */
+  template <typename T> void operator()(const char *, T &field) {
+    if constexpr (std::is_enum_v<T>) {
+      field = reader.enumeration<T>();
+    } else if constexpr (std::is_same_v<T, std::string>) {
+      field = reader.string();
+    } else if constexpr (std::is_same_v<T, std::vector<std::string>>) {
+      const size_t count = reader.count();
+      field.clear();
+      field.reserve(count);
+      for (size_t i = 0; i < count; ++i) {
+        field.push_back(reader.string());
+      }
+    } else {
+      field = reader.value<T>();
+    }
+  }
 };
 
 /** @brief Archive DR_EVT's whole-second plus fractional-second timestamp. */
@@ -1064,32 +1110,13 @@ void BasicSimulation<TraceType>::save_checkpoint(std::ostream &output) {
     writer.value(static_cast<std::uint32_t>(
         sizeof(typename TraceType::policy_type::record_type)));
 
-    // Configuration remains owned by Sim_Params. Persist the fields that
-    // determine scheduling or output identity so a mismatched destination is
-    // rejected before any state is replaced.
-    writer.value(m_params.m_total_nodes);
-    writer.enumeration(m_params.m_backfill_policy);
-    writer.enumeration(m_params.m_priority_policy);
-    writer.enumeration(m_params.m_queue_impl);
-    writer.value(m_params.m_block_size);
-    writer.value(m_params.m_num_max_candidates);
-    writer.value(m_params.m_wait_queue_capacity);
-    writer.enumeration(m_params.m_wait_queue_overflow);
-    writer.enumeration(m_params.m_run_time_mode);
-    writer.enumeration(m_params.m_run_time_distribution);
-    writer.value(m_params.m_run_time_scale);
-    writer.value(m_params.m_run_time_stddev);
-    writer.string(m_params.get_outfile());
-    writer.string(m_params.get_resource_trace());
-    writer.string(m_params.m_redis_uri);
-    writer.string(m_params.m_redis_key_prefix);
-    writer.value(m_params.m_msec_output);
-    writer.value(m_params.m_checkpoint_interval_jobs);
-    writer.value(m_params.m_cores_per_node);
-    writer.value(static_cast<std::uint64_t>(
-        m_params.m_infile_list_parsed.size()));
-    for (const auto &filename : m_params.m_infile_list_parsed) {
-      writer.string(filename);
+    // Record the complete configuration so the checkpoint describes the run
+    // that produced it. On restore, the fields that determine scheduling or
+    // output identity must match the restoring simulation (see
+    // load_checkpoint()); the rest are informational.
+    {
+      ParamsFieldWriter params_writer{writer};
+      m_params.visit_fields(params_writer);
     }
     writer.value(m_custom_scheduler != nullptr);
     writer.value(static_cast<std::uint64_t>(m_capacity_changes.size()));
@@ -1345,58 +1372,59 @@ void BasicSimulation<TraceType>::load_checkpoint(std::istream &input) {
                              static_cast<std::uint32_t>(sizeof(
                                  typename TraceType::policy_type::record_type)),
                              "trace record ABI");
-    require_checkpoint_match(reader.value<num_nodes_t>(),
-                             m_params.m_total_nodes, "total_nodes");
-    require_checkpoint_match(reader.enumeration<BackfillPolicy>(),
+    Sim_Params recorded;
+    {
+      ParamsFieldReader params_reader{reader};
+      recorded.visit_fields(params_reader);
+    }
+    require_checkpoint_match(recorded.m_total_nodes, m_params.m_total_nodes,
+                             "total_nodes");
+    require_checkpoint_match(recorded.m_backfill_policy,
                              m_params.m_backfill_policy, "backfill_policy");
-    require_checkpoint_match(reader.enumeration<PriorityPolicy>(),
+    require_checkpoint_match(recorded.m_priority_policy,
                              m_params.m_priority_policy, "priority_policy");
-    require_checkpoint_match(reader.enumeration<QueueImplementation>(),
-                             m_params.m_queue_impl, "queue_impl");
-    require_checkpoint_match(reader.value<size_t>(), m_params.m_block_size,
+    require_checkpoint_match(recorded.m_queue_impl, m_params.m_queue_impl,
+                             "queue_impl");
+    require_checkpoint_match(recorded.m_block_size, m_params.m_block_size,
                              "block_size");
-    require_checkpoint_match(reader.value<size_t>(),
+    require_checkpoint_match(recorded.m_num_max_candidates,
                              m_params.m_num_max_candidates,
                              "num_max_candidates");
-    require_checkpoint_match(reader.value<size_t>(),
+    require_checkpoint_match(recorded.m_wait_queue_capacity,
                              m_params.m_wait_queue_capacity,
                              "wait_queue_capacity");
-    require_checkpoint_match(reader.enumeration<CircularOverflowPolicy>(),
+    require_checkpoint_match(recorded.m_wait_queue_overflow,
                              m_params.m_wait_queue_overflow,
                              "wait_queue_overflow");
-    require_checkpoint_match(reader.enumeration<RunTimeMode>(),
-                             m_params.m_run_time_mode, "run_time_mode");
-    require_checkpoint_match(reader.enumeration<DistributionType>(),
+    require_checkpoint_match(recorded.m_run_time_mode, m_params.m_run_time_mode,
+                             "run_time_mode");
+    require_checkpoint_match(recorded.m_run_time_distribution,
                              m_params.m_run_time_distribution,
                              "run_time_distribution");
-    require_checkpoint_match(reader.value<double>(), m_params.m_run_time_scale,
-                             "run_time_scale");
-    require_checkpoint_match(reader.value<double>(), m_params.m_run_time_stddev,
-                             "run_time_stddev");
-    require_checkpoint_match(reader.string(), m_params.get_outfile(),
+    require_checkpoint_match(recorded.m_run_time_scale,
+                             m_params.m_run_time_scale, "run_time_scale");
+    require_checkpoint_match(recorded.m_run_time_stddev,
+                             m_params.m_run_time_stddev, "run_time_stddev");
+    require_checkpoint_match(recorded.get_outfile(), m_params.get_outfile(),
                              "simulated trace output");
-    require_checkpoint_match(reader.string(), m_params.get_resource_trace(),
+    require_checkpoint_match(recorded.get_resource_trace(),
+                             m_params.get_resource_trace(),
                              "resource trace output");
-    require_checkpoint_match(reader.string(), m_params.m_redis_uri,
+    require_checkpoint_match(recorded.m_redis_uri, m_params.m_redis_uri,
                              "redis_uri");
-    require_checkpoint_match(reader.string(), m_params.m_redis_key_prefix,
-                             "redis_key_prefix");
-    require_checkpoint_match(reader.value<bool>(), m_params.m_msec_output,
+    require_checkpoint_match(recorded.m_redis_key_prefix,
+                             m_params.m_redis_key_prefix, "redis_key_prefix");
+    require_checkpoint_match(recorded.m_msec_output, m_params.m_msec_output,
                              "msec_output");
-    require_checkpoint_match(reader.value<num_jobs_t>(),
+    require_checkpoint_match(recorded.m_checkpoint_interval_jobs,
                              m_params.m_checkpoint_interval_jobs,
                              "checkpoint_interval_jobs");
-    require_checkpoint_match(reader.value<unsigned>(),
-                             m_params.m_cores_per_node,
-                             "SWF cores per node");
-    const size_t progressive_file_count = reader.count();
-    require_checkpoint_match(progressive_file_count,
-                             m_params.m_infile_list_parsed.size(),
-                             "progressive input file count");
-    for (const auto &expected : m_params.m_infile_list_parsed) {
-      require_checkpoint_match(reader.string(), expected,
-                               "progressive input file");
-    }
+    require_checkpoint_match(recorded.m_cores_per_node,
+                             m_params.m_cores_per_node, "SWF cores per node");
+    require_checkpoint_match(recorded.m_infile_list_parsed,
+                             m_params.m_infile_list_parsed,
+                             "progressive input files");
+    m_restored_params = recorded;
     const bool checkpoint_uses_custom_scheduler = reader.value<bool>();
     require_checkpoint_match(checkpoint_uses_custom_scheduler,
                              m_custom_scheduler != nullptr,
