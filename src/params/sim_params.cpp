@@ -164,6 +164,9 @@ void Sim_Params::getopt(int &argc, char **&argv) {
   m_is_jobs_set = false;
   m_is_time_set = false;
 
+  // Set only by -i/--infile on the command line. A config file may also
+  // fill m_infile, and a positional argument is allowed to override that.
+  bool infile_option = false;
   while ((c = getopt_long(argc, argv, OPTIONS, sim_longopts, NULL)) != -1) {
     switch (c) {
     case 'h': /* --help */
@@ -171,6 +174,7 @@ void Sim_Params::getopt(int &argc, char **&argv) {
       break;
     case 'i': /* --infile */
       m_infile = std::string(optarg);
+      infile_option = true;
       break;
     case 'L': /* --infile_list */
       m_infile_list = std::string(optarg);
@@ -473,14 +477,23 @@ void Sim_Params::getopt(int &argc, char **&argv) {
   apply_sim_start_time();
 
   // --infile_list mode has no single positional trace file to require -
-  // the file it names lists several instead. Otherwise, unchanged:
-  // exactly one positional argument, which always wins over -i/--infile
-  // if both were somehow given.
+  // the file it names lists several instead. Otherwise the trace comes
+  // from either -i/--infile or exactly one positional argument, the same
+  // rule the tracer applies: one of them is required, and giving both is
+  // an error rather than silently preferring one.
   if (m_infile_list.empty()) {
-    if (optind != (argc - 1)) {
+    const bool has_positional = (optind == (argc - 1));
+    if (has_positional) {
+      if (infile_option) {
+        std::cerr << "Error: give the input trace either as -i/--infile or "
+                     "as the positional argument, not both"
+                  << std::endl;
+        print_usage(argv[0], 1);
+      }
+      m_infile = argv[optind];
+    } else if (optind != argc || m_infile.empty()) {
       print_usage(argv[0], 1);
     }
-    m_infile = argv[optind];
   } else if (optind != argc) {
     print_usage(argv[0], 1);
   } else {
