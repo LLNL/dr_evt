@@ -88,7 +88,7 @@ server; no pre-existing Redis service is used.
 | Custom FCFS | 8 | `run_custom_scheduler_tests.sh` | Six focused API checks plus two golden schedules, including warm-start accounting and 2,000 jobs |
 | Queue implementation differential | 34 × 4 | `run_fcfs_queue_implementation_tests.sh --correctness` | Equivalent schedules across deque, multimap, block, and circular queues |
 | Column aliases | 8 | `run_column_alias_tests.sh` | Accepted runtime-column aliases and missing-column rejection |
-| Run-time mode | 7 | `run_time_mode_tests.sh` | Actual, limit, distribution, capping, and planning behavior |
+| Run-time mode | 8 | `run_time_mode_tests.sh` | Actual, limit, distribution, capping, the 1 s sampling floor, and planning behavior |
 | Unit | 7 | `run_unit_tests.sh` | Basic parsing, formats, and execution |
 | Feature | 8 | `run_feature_tests.sh` | Policies, modes, rejection, output formats, time-varying capacity, and replay-based warm start |
 | Scale | 7 | `run_scale_tests.sh` | Workloads from 10 to 10,000 jobs |

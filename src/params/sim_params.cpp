@@ -829,6 +829,7 @@ void Sim_Params::print_usage(const std::string exec, int code) {
          "        For normal: std dev = limit * stddev\n"
          "        For lognormal: shape parameter\n"
          "        For uniform: upper bound offset\n"
+         "        Sampled run times are clamped to [1 second, time_limit].\n"
          "\n"
          "    -v, --verbose\n"
          "        Enable verbose output for debugging and testing.\n"

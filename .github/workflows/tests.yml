@@ -184,7 +184,7 @@ jobs:
         id: run-time-mode
         run: |
           echo "========================================"
-          echo "Testing run_time_mode (actual/distribution/limit) and distribution capping (7 tests)"
+          echo "Testing run_time_mode (actual/distribution/limit) and distribution capping (8 tests)"
           echo "========================================"
           ./tests/run_time_mode_tests.sh
 
@@ -341,7 +341,7 @@ jobs:
           echo "  Scheduler correctness - Installed (34 fixtures): ${{ steps.scheduler-correctness-installed.outcome }}"
           echo "  Queue Impl Differential (34×4 impls): ${{ steps.queue-impl.outcome }}"
           echo "  Column Aliases (8 tests): ${{ steps.column-alias.outcome }}"
-          echo "  Run Time Mode (7 tests): ${{ steps.run-time-mode.outcome }}"
+          echo "  Run Time Mode (8 tests): ${{ steps.run-time-mode.outcome }}"
           echo "  Unit (7 tests): ${{ steps.unit.outcome }}"
           echo "  Feature (8 tests): ${{ steps.feature.outcome }}"
           echo "  Conservative (2 tests): ${{ steps.conservative.outcome }}"
