@@ -334,6 +334,13 @@ public:
   }
 
   /**
+   * @brief Set the processors-per-node divisor used by the SWF loader.
+   * @param[in] cores Processors per node; 0 derives the value from the SWF
+   *        header (MaxProcs / MaxNodes). No effect on other formats.
+   */
+  void set_cores_per_node(unsigned cores) { m_dcols.set_cores_per_node(cores); }
+
+  /**
    * @brief Set the periodic completed-job flush interval in records.
    * @param[in] interval Number of processed departures per flush; zero uses
    *        the current job-store capacity.
@@ -341,10 +348,6 @@ public:
    * reset the interval. The interval never changes job eligibility: only the
    * completed contiguous front prefix can be written and reclaimed.
    */
-  /** @brief Processors-per-node divisor for SWF input; 0 derives it from the
-   *  file header. No effect on other formats. */
-  void set_cores_per_node(unsigned cores) { m_dcols.set_cores_per_node(cores); }
-
   void set_job_flush_interval(size_t interval) {
     m_job_flush_interval = interval;
   }

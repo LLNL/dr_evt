@@ -147,14 +147,22 @@ class Swf_Job_Record : public Job_Record {
 public:
   using Job_Record::Job_Record;
 
+  /**
+   * @brief Wrap a parsed job record with its SWF identity fields.
+   * @param[in] job Record built from the SWF fields the simulator uses.
+   * @param[in] swf_job_number SWF field 1, the job number in the file.
+   * @param[in] swf_queue SWF field 15; 0 when missing (-1) or above 255.
+   */
   Swf_Job_Record(Job_Record &&job, std::uint32_t swf_job_number,
                  std::uint8_t swf_queue)
       : Job_Record(std::move(job)), m_swf_job_number(swf_job_number),
         m_swf_queue(swf_queue) {}
 
-  /// SWF field 1, the job number in the file.
+  /** @brief Report the job number from the SWF file.
+   *  @return SWF field 1, or 0 when it was missing or out of range. */
   std::uint32_t swf_job_number() const { return m_swf_job_number; }
-  /// SWF field 15, 0 when missing (-1) or above 255.
+  /** @brief Report the queue number from the SWF file.
+   *  @return SWF field 15, or 0 when missing (-1) or above 255. */
   std::uint8_t swf_queue() const { return m_swf_queue; }
 
 private:
@@ -172,15 +180,36 @@ struct Swf_Trace_Policy {
   using record_type = Swf_Job_Record;
 
   /** @brief Read MaxNodes from an SWF file's ';' header without loading it.
+   *  @param[in] fname Path of the SWF file.
    *  @return The value, or 0 when the file or the key is absent. */
   static unsigned header_max_nodes(const std::string &fname);
 
   using job_store_type = boost::circular_buffer<record_type>;
   using resource_sample_type = Standard_Resource_Sample;
 
+  /**
+   * @brief Parse an SWF file into job records.
+   * @param[in] fname Path of the SWF file.
+   * @param[in] dcols Column configuration; supplies the cores-per-node
+   *        override and receives the load diagnostics.
+   * @param[out] records Destination, appended to and sorted by submit time
+   *        over the records this call added.
+   * @param[in] max_count Maximum records to accept; 0 means no limit.
+   * @return EXIT_SUCCESS, or EXIT_FAILURE when the file cannot be opened.
+   * @throws std::invalid_argument on a malformed line or an out-of-range
+   *         node count or time limit.
+   */
   static int load_records(const std::string &fname, const Data_Columns &dcols,
                           std::vector<record_type> &records,
                           num_jobs_t max_count);
+  /**
+   * @brief Build a record for a job appended at run time.
+   * @param[in] submit_time Arrival time.
+   * @param[in] num_nodes Nodes requested.
+   * @param[in] queue Queue identity.
+   * @param[in] limit_time Time limit in seconds.
+   * @return Record with no SWF identity (job number and queue 0).
+   */
   static record_type make_record(const epoch_t &submit_time,
                                  num_nodes_t num_nodes, job_queue_t queue,
                                  timeout_t limit_time) {
@@ -188,16 +217,26 @@ struct Swf_Trace_Policy {
                        0u, 0u);
   }
 
+  /** @brief Build a resource-history sample.
+   *  @param[in] time Sample time.
+   *  @param[in] allocated Nodes in use.
+   *  @param[in] capacity Nodes available in total.
+   *  @return Standard sample; SWF adds no resource columns. */
   static resource_sample_type sample(const epoch_t &time, num_nodes_t allocated,
                                      num_nodes_t capacity) {
     return {time, allocated, capacity};
   }
+  /** @brief Extra resource-trace header columns. @return Empty string. */
   static const char *resource_columns() { return ""; }
+  /** @brief Extra resource-trace values for a sample. @return Empty string. */
   static std::string resource_values(const resource_sample_type &) {
     return "";
   }
+  /// @brief Reset runtime accounting before restoring running jobs (no-op).
   void reset_runtime_state() {}
+  /// @brief Hook called when a job starts (no-op for SWF).
   void on_start(const record_type &) {}
+  /// @brief Hook called when a job finishes (no-op for SWF).
   void on_finish(const record_type &) {}
 };
 
