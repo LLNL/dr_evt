@@ -148,5 +148,47 @@ else
     FAIL=$((FAIL + 1))
 fi
 
+# 8. Blank lines (a trailing newline at end of file, or an empty line in the
+#    middle) are skipped. They used to fail the whole load as a record with
+#    too few fields.
+{
+    cat "$TRACE"
+    printf '\n\n'
+} >"$WORK_DIR/trailing_blank.csv"
+{
+    head -2 "$TRACE"
+    printf '   \n'
+    tail -n +3 "$TRACE"
+    printf '\n'
+} >"$WORK_DIR/interior_blank.csv"
+if "$SIMULATOR" "$WORK_DIR/trailing_blank.csv" --total_nodes 2 \
+        --outfile "$WORK_DIR/trailing_blank.csv.out" >/dev/null 2>&1 \
+   && "$SIMULATOR" "$WORK_DIR/interior_blank.csv" --total_nodes 2 \
+        --outfile "$WORK_DIR/interior_blank.csv.out" >/dev/null 2>&1 \
+   && cmp -s "$WORK_DIR/positional.out" "$WORK_DIR/trailing_blank.csv.out" \
+   && cmp -s "$WORK_DIR/positional.out" "$WORK_DIR/interior_blank.csv.out"; then
+    echo "  ✓ blank lines in a trace are skipped"
+    PASS=$((PASS + 1))
+else
+    echo "  ✗ a trace with blank lines failed to load or differed"
+    FAIL=$((FAIL + 1))
+fi
+
+# 9. A UTF-8 byte-order mark at the start of the file (Excel and some Windows
+#    editors write one) must not hide the first header column.
+{
+    printf '\xEF\xBB\xBF'
+    cat "$TRACE"
+} >"$WORK_DIR/bom.csv"
+if "$SIMULATOR" "$WORK_DIR/bom.csv" --total_nodes 2 \
+        --outfile "$WORK_DIR/bom.csv.out" >"$WORK_DIR/bom.log" 2>&1 \
+   && cmp -s "$WORK_DIR/positional.out" "$WORK_DIR/bom.csv.out"; then
+    echo "  ✓ a trace with a UTF-8 byte-order mark loads"
+    PASS=$((PASS + 1))
+else
+    echo "  ✗ a trace with a UTF-8 byte-order mark failed to load or differed"
+    FAIL=$((FAIL + 1))
+fi
+
 echo "CLI input tests: $PASS passed, $FAIL failed"
 test "$FAIL" -eq 0

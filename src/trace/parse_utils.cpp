@@ -208,6 +208,9 @@ std::string trim(const std::string &str, const std::string &whitespace) {
 
 std::vector<substr_pos_t> comma_separate(const std::string &str) {
   std::vector<substr_pos_t> ret;
+  if (str.empty()) {
+    return ret; // str.back() below would be undefined on an empty string
+  }
   ret.reserve(str.size());
   size_t s = 0ul;
 
