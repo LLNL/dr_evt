@@ -169,7 +169,7 @@ point for a future optimistic or parallel simulation horizon.
 
 - `src/trace/trace.{hpp,cpp}`: storage, capacity, reclamation, and output
   writing
-- `src/sim/simulation.{hpp,cpp}`: streaming and progressive-run entry points
+- `src/sim/sim.{hpp,cpp}`: streaming and progressive-run entry points
 - `src/utils/system_memory.hpp`: Linux available-memory lookup
 - [`tests/test_append_job_api.cpp`](https://github.com/LLNL/dr_evt/blob/main/tests/test_append_job_api.cpp): single and batched append behavior,
   including reclaim-before-grow and all-or-nothing capacity failures

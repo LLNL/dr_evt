@@ -21,7 +21,7 @@ Configuration field names match the long command-line names with the leading
 | Job storage | `job_store_capacity`, `job_store_overflow`, `job_flush_interval`, `memory_pressure_fraction` |
 | Resource history | `resource_history_capacity` |
 | Checkpoint | `checkpoint_file`, `checkpoint_interval_jobs` |
-| Trace handling | `trace_type`, `trace_format`, `timestamp_format`, `timezone` |
+| Trace handling | `trace_type`, `trace_format`, `cores_per_node`, `timestamp_format`, `timezone` |
 | Runtime model | `run_time_mode`, `run_time_distribution`, `run_time_scale`, `run_time_stddev` |
 | Other | `seed`, `verbose` |
 

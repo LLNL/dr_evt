@@ -28,6 +28,7 @@ Top-level ``src``
 -----------
 
 - `block_wait_queue.cpp <https://github.com/LLNL/dr_evt/blob/main/src/sim/block_wait_queue.cpp>`_, `block_wait_queue.hpp <https://github.com/LLNL/dr_evt/blob/main/src/sim/block_wait_queue.hpp>`_
+- `capacity_schedule.cpp <https://github.com/LLNL/dr_evt/blob/main/src/sim/capacity_schedule.cpp>`_, `capacity_schedule.hpp <https://github.com/LLNL/dr_evt/blob/main/src/sim/capacity_schedule.hpp>`_
 - `job_submit_common.hpp <https://github.com/LLNL/dr_evt/blob/main/src/sim/job_submit_common.hpp>`_, `job_submit_model.hpp <https://github.com/LLNL/dr_evt/blob/main/src/sim/job_submit_model.hpp>`_
 - `multi_platform_runs.hpp <https://github.com/LLNL/dr_evt/blob/main/src/sim/multi_platform_runs.hpp>`_
 - `schedule_windows.cpp <https://github.com/LLNL/dr_evt/blob/main/src/sim/schedule_windows.cpp>`_, `schedule_windows.hpp <https://github.com/LLNL/dr_evt/blob/main/src/sim/schedule_windows.hpp>`_
@@ -53,9 +54,10 @@ Top-level ``src``
 - `job_io.cpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/job_io.cpp>`_, `job_io.hpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/job_io.hpp>`_
 - `job_record.cpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/job_record.cpp>`_, `job_record.hpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/job_record.hpp>`_
 - `job_stat_submit.cpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/job_stat_submit.cpp>`_, `job_stat_submit.hpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/job_stat_submit.hpp>`_
-- `job_stat_texec.cpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/job_stat_texec.cpp>`_, `job_stat_texec.hpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/job_stat_texec.hpp>`_
+- `job_stat_texec.hpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/job_stat_texec.hpp>`_
 - `parse_utils.cpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/parse_utils.cpp>`_, `parse_utils.hpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/parse_utils.hpp>`_
 - `trace.cpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/trace.cpp>`_, `trace.hpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/trace.hpp>`_
+- `trace_policy.cpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/trace_policy.cpp>`_, `trace_policy.hpp <https://github.com/LLNL/dr_evt/blob/main/src/trace/trace_policy.hpp>`_
 
 ``src/params``
 --------------
@@ -83,6 +85,7 @@ Top-level ``src``
 - `exception.cpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/exception.cpp>`_, `exception.hpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/exception.hpp>`_
 - `file.cpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/file.cpp>`_, `file.hpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/file.hpp>`_
 - `omp_diagnostics.cpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/omp_diagnostics.cpp>`_, `omp_diagnostics.hpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/omp_diagnostics.hpp>`_
+- `redis_output.cpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/redis_output.cpp>`_, `redis_output.hpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/redis_output.hpp>`_
 - `rngen.hpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/rngen.hpp>`_, `rngen_impl.hpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/rngen_impl.hpp>`_
 - `seed.hpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/seed.hpp>`_
 - `state_io.hpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/state_io.hpp>`_, `state_io_ser20.hpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/state_io_ser20.hpp>`_, `state_io_impl.hpp <https://github.com/LLNL/dr_evt/blob/main/src/utils/state_io_impl.hpp>`_

@@ -23,7 +23,8 @@ Another use case is the [Fugaku Power-Usage Simulation Experiment](https://dr-ev
   normal, lognormal, and uniform distributions with reproducible seeds.
 - **Interfaces:** command-line batch execution, incremental C++ streaming,
   Python bindings, and a gRPC service.
-- **Trace support:** simple CSV and LLNL Lassen inputs; scheduled-job and
+- **Trace support:** simple CSV, LLNL Lassen, and Standard Workload Format
+  (SWF) inputs; scheduled-job and
   resource-usage outputs to CSV or Redis, plus optional power-usage output.
 - **Implementation:** based on auto-scaling `circular` buffers
   for wait queues, job data and resource trace to support streaming.

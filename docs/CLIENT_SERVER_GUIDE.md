@@ -92,15 +92,16 @@ simulation to the desired point in time, its matching
 - `shadow_time`: the earliest start time reserved for the FCFS queue head;
   `-1` if no job is waiting.
 - `releases`: the resource-change-time query: chronologically ordered
-  `ResourceRelease` events between the current time and shadow time,
-  inclusive. Each has its absolute simulation `time` and `nodes_released`;
+  `ResourceRelease` events for every running job that ends after
+  `current_time`. Each has its absolute simulation `time` and `nodes_released`;
   jobs ending at the same time are combined into one event.
 
 The projection deliberately uses each running job's `time_limit`, not its
 actual runtime. That is the same estimate used by the FCFS/EASY scheduler to
 calculate `shadow_time`, so clients can safely use the response to evaluate
-backfill candidates without seeing a conflicting reservation model. If there
-is no waiting head, or the head can run immediately, `releases` is empty.
+backfill candidates without seeing a conflicting reservation model. `releases`
+may be nonempty even when no job is waiting; it is empty only when nothing is
+running.
 
 For example, with no free nodes, a 40-node job predicted to end at time 50,
 a 60-node job predicted to end at time 100, and a 100-node FCFS head, the

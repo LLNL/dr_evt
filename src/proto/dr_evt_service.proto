@@ -58,7 +58,7 @@ message ClientMessage {
 // protobuf --config schema). Must be sent before any other request.
 message InitRequest {
     uint32 total_nodes = 1;
-    string trace_format = 2;       // "simple" or "lassen" (default: "simple")
+    string trace_format = 2;       // "simple", "lassen", or "swf" (default: "simple")
     string timestamp_format = 3;   // retained "epoch"/"iso" compatibility value
     string timezone = 4;
     string backfill_policy = 5;    // "easy", "conservative", or "none"

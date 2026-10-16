@@ -15,7 +15,7 @@ ${CMAKE_INSTALL_PREFIX}/bin/simulator input.csv --outfile results/jobs_sim.csv
 ```
 
 If `--outfile` is omitted, DR_EVT derives a filename from the input trace
-(for example, `jobs.csv` becomes `jobs_sim.csv`). Normally, the CSV contains
+(for example, `jobs.csv` becomes `jobs.out` in the current directory). Normally, the CSV contains
 one row for each scheduled job. When `--max_time` is set, it contains only
 jobs completed at or before that inclusive boundary; jobs still running or
 waiting are omitted. In the default ID-input build, an input trace that
@@ -83,8 +83,11 @@ time,free_nodes,allocated_nodes,avgpcon,minpcon,maxpcon
 `--trace_type` selects the job/resource data model independently of
 `--trace_format`, which selects how the input file is parsed.
 
-Without `--resource_trace`, DR_EVT writes this output as
-`<outfile>_resources.csv` (for example, `jobs_sim_resources.csv`).
+Without `--resource_trace`, DR_EVT derives the name from the job output file:
+a trailing `.csv` is replaced by `_resources.csv`, otherwise `_resources.csv`
+is appended (for example, `results/jobs_sim.csv` becomes
+`results/jobs_sim_resources.csv`, and the default `jobs.out` becomes
+`jobs.out_resources.csv`).
 
 ## Replay outputs
 

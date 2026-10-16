@@ -11,9 +11,11 @@ specialization:
 ```text
 BasicTrace<Standard_Trace_Policy> -> Trace
 BasicTrace<Pcon_Trace_Policy>     -> PconTrace
+BasicTrace<Swf_Trace_Policy>      -> SwfTrace
 
 BasicSimulation<Trace>            -> Simulation
 BasicSimulation<PconTrace>        -> PconSimulation
+BasicSimulation<SwfTrace>         -> SwfSimulation
 ```
 
 The command-line simulator chooses between these already-specialized concrete
@@ -42,9 +44,11 @@ The trace data model is selected with:
 ```text
 --trace_type standard
 --trace_type pcon
+--trace_type swf
 ```
 
-`standard` is the default.
+`standard` is the default. `swf` reads Standard Workload Format files directly
+and accepts `--cores_per_node` to convert processor counts to nodes.
 
 `--trace_type` is independent of `--trace_format`. The former chooses the
 in-memory job/resource data model; the latter chooses the input trace parser

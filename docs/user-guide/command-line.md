@@ -96,7 +96,8 @@ See [`docs/dev/OUTPUT_TRACE_BUFFERS.md`](../dev/OUTPUT_TRACE_BUFFERS.md) for the
 ### `-o, --outfile FILENAME`
 Output file for simulated job trace.
 
-**Default:** Derived from input filename (e.g., `jobs.csv` -> `jobs_sim.csv`)
+**Default:** `<input stem>.out` in the current directory (e.g., `jobs.csv` ->
+`jobs.out`). An input that already ends in `.out` requires an explicit `-o`.
 
 **Example:**
 ```bash
@@ -135,9 +136,11 @@ ${CMAKE_INSTALL_PREFIX}/bin/simulator traces/jobs.csv \
     --resource_trace results/resources.csv
 ```
 
-**Default:** If not specified, resource trace is written to
-`<outfile>_resources.csv`, or to `<redis_key_prefix>:resources:csv` when Redis
-output is enabled.
+**Default:** If not specified, resource trace is written next to the job
+output: a trailing `.csv` in the outfile name is replaced by `_resources.csv`,
+otherwise `_resources.csv` is appended (e.g., `results.csv` ->
+`results_resources.csv`, `jobs.out` -> `jobs.out_resources.csv`). With Redis
+output enabled it goes to `<redis_key_prefix>:resources:csv` instead.
 
 ## System Configuration
 
@@ -437,7 +440,7 @@ Input trace format.
 
 **Default:** `simple`
 
-See [Input Trace Files](trace-formats.md) for both schemas.
+See [Input Trace Files](trace-formats.md) for all three schemas.
 
 **Example:**
 ```bash
