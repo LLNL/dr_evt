@@ -11,8 +11,8 @@ _has_doxygen_xml = os.path.isfile(os.path.join(_doxygen_xml, 'index.xml'))
 project = 'DR_EVT'
 copyright = '2024-2026, Lawrence Livermore National Laboratory'
 author = 'LLNL'
-version = '1.0'
-release = '1.0.0'
+version = '0.9'
+release = '0.9.0'
 
 # Short description for metadata
 html_title = 'DR_EVT Documentation'

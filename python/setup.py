@@ -64,7 +64,7 @@ class CMakeBuild(build_ext):
 
 setup(
     name='dr_evt',
-    version='1.0.0',
+    version='0.9.0',
     author='LLNL',
     author_email='',
     description='DR_EVT: HPC Job Scheduler Simulator - Python API',
