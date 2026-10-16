@@ -554,28 +554,40 @@ private:
 } // namespace dr_evt_grpc
 
 /** @brief Start the DR_EVT gRPC server and wait for shutdown.
- * @param[in] address Listen address in host:port form. */
-void RunServer(const std::string &address) {
+ * @param[in] address Listen address in host:port form.
+ * @return true when the server bound its port and ran to shutdown; false when
+ * the listening port could not be bound (for example, already in use). */
+bool RunServer(const std::string &address) {
   dr_evt_grpc::SimulationServiceImpl service;
 
   ServerBuilder builder;
-  builder.AddListeningPort(address, grpc::InsecureServerCredentials());
+  int bound_port = 0;
+  builder.AddListeningPort(address, grpc::InsecureServerCredentials(),
+                           &bound_port);
   builder.RegisterService(&service);
 
   std::unique_ptr<Server> server(builder.BuildAndStart());
+  if (!server || bound_port == 0) {
+    // gRPC has already logged the bind error. Fail fast so a launcher or
+    // test does not wait on a server that will never accept connections.
+    std::cerr << "DR_EVT simulation server failed to listen on " << address
+              << std::endl;
+    return false;
+  }
   std::cout << "DR_EVT simulation server listening on " + address + "\n";
   server->Wait();
+  return true;
 }
 
 /** @brief Run the gRPC server executable.
  * @param[in] argc Command-line argument count.
  * @param[in] argv Command-line argument vector.
- * @return Process status: zero on normal server shutdown. */
+ * @return Process status: zero on normal server shutdown, one when the
+ * listening port could not be bound. */
 int main(int argc, char **argv) {
   std::string address = "0.0.0.0:50051";
   if (argc > 1) {
     address = argv[1];
   }
-  RunServer(address);
-  return 0;
+  return RunServer(address) ? 0 : 1;
 }
