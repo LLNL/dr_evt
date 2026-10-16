@@ -55,7 +55,7 @@ string(TOLOWER "${PROJECT_NAME}" LOWER_PROJECT_NAME)
 ################################################################
 
 set(DR_EVT_VERSION_MAJOR 0)
-set(DR_EVT_VERSION_MINOR 1)
+set(DR_EVT_VERSION_MINOR 9)
 set(DR_EVT_VERSION_PATCH 0)
 
 # Build with at least C++20; allow newer standards.

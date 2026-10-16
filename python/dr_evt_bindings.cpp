@@ -364,5 +364,5 @@ PYBIND11_MODULE(dr_evt, m) {
           "Call before streaming when jobs originate in a trace file.");
 
   // Module-level version info
-  m.attr("__version__") = "1.0.0";
+  m.attr("__version__") = "0.9.0";
 }
