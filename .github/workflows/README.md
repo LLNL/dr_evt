@@ -15,17 +15,18 @@ This directory contains GitHub Actions workflows for automated testing.
 - Scheduler correctness tests (34) - `tests/run_scheduler_correctness_tests.sh`
 - Queue implementation differential tests
 - Column alias tests (8)
-- Run-time mode tests (7)
+- Run-time mode tests (8)
 - Unit tests (7)
 - Feature tests (8)
 - Conservative backfilling tests (2)
 - Replay tests (5: one reclamation-boundary binary and four CLI comparisons)
 - Resource-history tests (5)
 - Job-store tests (6)
-- Config tests (12), including power-usage `trace_type`, capacity-schedule,
+- Config tests (14), including power-usage `trace_type`, capacity-schedule,
   and warm-start coverage
-- Native CTest suite (15 native registrations plus the Python trace-tools
-  registration, and MPI streaming when MPI is available), including the
+- Native CTest suite (19 native registrations, the Python trace-tools and
+  multi-cluster dispatch registrations, and the MPI streaming and MPI dispatch
+  registrations when MPI is available), including the
   custom FCFS scheduler's focused and 2,000-job comparisons
 - Ser20-disabled native serialization build and tests
 - Sphinx and Doxygen documentation build with warnings treated as errors
@@ -59,6 +60,7 @@ This directory contains GitHub Actions workflows for automated testing.
 - Ser20 caller-owned-memory serialization test - installed `t_state_ser20`
 - Progressive-loading C++ API test - installed `test_progressive_load`
 - Queue-input schema test - installed `test_queue_input`
+- Streaming append API test - installed `test_append_job_api`
 
 **Compiler:**
 - GCC 14 only
@@ -77,17 +79,17 @@ Total tests referenced by the full suite:
 | Custom FCFS | 8 | CTest; six focused checks and two golden schedules, including warm-start accounting and 2,000 jobs |
 | Queue implementation differential | 34 fixtures × 4 implementations | CI runner |
 | Column aliases | 8 | CI runner |
-| Run-time mode | 7 | CI runner |
+| Run-time mode | 8 | CI runner |
 | Unit | 7 | CI runner |
 | Feature | 8 | CI runner; includes time-varying capacity and native warm start |
 | Conservative | 2 | CI runner |
 | Replay | 5 | CI runner; reclamation safety plus resource equivalence |
 | Resource history | 5 | CI runner |
 | Job store | 6 | CI runner |
-| Config | 12 | CI runner; includes power-usage, capacity-schedule, and warm-start configuration coverage |
-| Native CTest | 15, plus 1 with MPI | CI runner; RNG and binary serialization, trace policies, replay reclamation, custom scheduling, append/streaming APIs, warm starts, capacity parsing, queues, and CLI dispatch |
-| Trace tools | 2 checks in 1 CTest registration | CI runner; capacity inference and warm-start boundary/output behavior |
-| Python API | 18 | CI runner |
+| Config | 14 | CI runner; includes power-usage, capacity-schedule, and warm-start configuration coverage |
+| Native CTest | 19 native, 2 Python, plus 2 with MPI | CI runner; RNG and binary serialization, trace policies, replay reclamation, custom scheduling, append/streaming APIs, warm starts, capacity parsing, queues, CLI dispatch, and SWF input |
+| Trace tools | 4 checks in 1 CTest registration | CI runner; capacity inference, simulator-format conversion, checkpoint output stitching, and warm-start boundary/output behavior |
+| Python API | 20 | CI runner |
 | Market package | 12 | CI runner; platforms, jobs and trace preparation |
 | gRPC client/server | 2 | CI runner |
 | Append-job | 28: 23 C++ + 5 optional gRPC checks | CI runner |
@@ -237,9 +239,10 @@ don't assume it's the same already-fixed issue without checking.
 
 ### Tests timeout
 
-- No explicit timeout is currently configured, so GitHub Actions applies its
-  six-hour default to each job.
-- Add a job-level `timeout-minutes` value if a tighter limit is needed.
+- The `redis-integration` job sets `timeout-minutes: 15`; the other jobs use
+  GitHub Actions' six-hour default.
+- Add a job-level `timeout-minutes` value to the other jobs if a tighter limit
+  is needed.
 - Consider splitting into more jobs
 
 ## Future Enhancements

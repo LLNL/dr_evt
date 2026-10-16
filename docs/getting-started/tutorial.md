@@ -41,7 +41,9 @@ The simulator's statistics summary includes:
 === Simulation Statistics ===
 Total jobs: 3
 Jobs submitted: 3
+Jobs started: 3
 Jobs completed: 3
+Current time: 150
 Total nodes: 100
 Average wait time: 30 sec
 Average turnaround time: 90 sec

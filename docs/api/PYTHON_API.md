@@ -52,6 +52,8 @@ or `None`.
 | `infile` | `str` |
 | `redis_uri` | `str` |
 | `redis_key_prefix` | `str` |
+| `checkpoint_file` | `str` |
+| `checkpoint_interval_jobs` | `int` |
 | `total_nodes` | `int` |
 | `capacity_schedule` | `str` |
 | `sim_start_time` | `float` |
@@ -87,6 +89,8 @@ arguments use legacy names or numeric IDs.
   `BackfillPolicy.CONSERVATIVE`
 - `PriorityPolicy.FCFS`, `PriorityPolicy.FCFS_CONSERVATIVE`,
   `PriorityPolicy.SJF`, `PriorityPolicy.LJF`
+- `JobState.PENDING`, `JobState.RUNNING`, `JobState.COMPLETED`,
+  `JobState.REJECTED` (returned by the job status query)
 
 Their scheduling semantics are documented in
 [Command-Line Options](../user-guide/command-line.md) and
@@ -126,7 +130,7 @@ Checkpoint methods are present when DR_EVT is built with
 `DR_EVT_WITH_SER20=ON`, and files require matching `SimParams`. Custom FCFS is
 supported when the destination `Simulation` is constructed with equivalent
 cost and selection callbacks; callback objects and external state are not
-stored in the checkpoint. Standard and Pcon trace state are preserved. Custom
+stored in the checkpoint. Standard, Pcon, and SWF trace state are preserved. Custom
 scheduler subclasses and replay/warm-start are rejected rather than restored
 inexactly. Progressive file loading resumes at the next fully admitted input
 file. Output files remain external to the

@@ -38,11 +38,11 @@ message DR_EVT_Params {
         // Scheduling parameters
         uint32 total_nodes = 9;         // System node count (default: 795)
         string backfill_policy = 10;     // "easy", "conservative", or "none" (default: "easy")
-        string priority_policy = 11;    // "fcfs", "fcfs_conservative", "sjf", or "ljf" (default: "fcfs")
+        string priority_policy = 11;    // "fcfs", "fcfs_alt", "fcfs_conservative", "sjf", or "ljf" (default: "fcfs")
 
         // Trace format parameters
-        string trace_type = 12;         // "standard" or "pcon" (default: "standard")
-        string trace_format = 13;       // "simple" or "lassen" (default: "simple")
+        string trace_type = 12;         // "standard", "pcon", or "swf" (default: "standard")
+        string trace_format = 13;       // "simple", "lassen", or "swf" (default: "simple")
         string timestamp_format = 14;   // retained "epoch"/"iso" compatibility value (default: "epoch")
         string timezone = 15;           // e.g., "UTC", "America/Los_Angeles" (default: "America/Los_Angeles")
 

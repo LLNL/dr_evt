@@ -228,8 +228,8 @@ simulation is constructed with equivalent cost and selection callbacks. The
 checkpoint restores its queue entries, previously computed costs, candidate
 state, and accounting without invoking the cost callback during load; callback
 objects and their externally owned state are not serialized. Custom scheduler
-subclasses remain unsupported because they may add unknown state. Standard and
-Pcon traces and progressive file loading are supported; replay/warm-start
+subclasses remain unsupported because they may add unknown state. Standard,
+Pcon, and SWF traces and progressive file loading are supported; replay/warm-start
 execution remains unsupported. Redis namespaces are archived as numbered
 `PREFIX:pre-restart:N` generations and rebuilt by the same stitch tool.
 `get_job_statuses()` remains independent of Redis.

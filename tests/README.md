@@ -24,7 +24,9 @@ ctest --test-dir build --output-on-failure
 ```
 
 The focused runners below exercise fixture suites and comparisons that are not
-all registered with CTest:
+all registered with CTest. A fixture is a small sample input, usually a short
+job trace under `test_traces/`, together with the expected output it should
+produce:
 
 ```bash
 ./tests/run_scheduler_correctness_tests.sh
@@ -99,26 +101,26 @@ server; no pre-existing Redis service is used.
 | Job store | 6 | `run_job_store_tests.sh` | Capacity, growth/abort, reclamation, and statistics |
 | Redis output | 1 integration runner | `run_redis_tests.sh` | Isolated server startup, CSV/hash output, time/resource indexes, namespace replacement, finalized-versus-unfinished visibility, pipelined bulk lookup, and byte-identical job and resource outputs for Redis/file runs of 200 jobs. Redis coverage runs with and without Ser20; the checkpoint portion runs only in the Ser20-enabled configuration. |
 | Redis gRPC example | 1 integration runner | `run_redis_grpc_client_test.sh` | Batch append, advance, pipelined finalized-job lookup, one server fallback query, and original-order merged reporting |
-| Append-job | 28 | `run_append_job_tests.sh` | 23 in-process C++ checks plus 5 optional gRPC checks, including integral streaming-limit validation, known actual runtimes, capacity-aware instantaneous/aggregate utilization, warm start, and validation |
+| Append-job | 27 | `run_append_job_tests.sh` | 23 in-process C++ checks plus 4 optional gRPC checks, including integral streaming-limit validation, known actual runtimes, capacity-aware instantaneous/aggregate utilization, warm start, and validation |
 | Checkpoint/restart | 7 groups | CTest (`test_checkpoint_restart`) and `run_redis_tests.sh` | Exact scheduler continuation plus byte-identical file, progressive-loading, and Redis job/resource output after archive-and-stitch recovery. |
 | Progressive loading | 16 | `run_progressive_load_tests.sh` | 11 C++ checks plus 5 CLI checks for multi-file loading, bounded storage, block-queue integration, and memory checks |
 | Protobuf configuration | 14 | `run_configs_tests.sh` | Configuration/CLI parity, capacity/simulation-start-time validation, and documented examples |
-| Python API | 19 | `run_python_tests.sh` | Bindings, callbacks, streaming, checkpoint/restart, monitoring, policy APIs, and warm-start execution |
-| gRPC client/server | 2 | `run_grpc_tests.sh` | Single-pair and optional MPI multi-server behavior |
+| Python API | 20 | `run_python_tests.sh` | 14 test functions recording 20 checks: bindings, callbacks, streaming, checkpoint/restart, monitoring, policy APIs, and warm-start execution |
+| gRPC client/server | 2 | `run_grpc_tests.sh` | A single server/client pair, and optionally two servers driven by two MPI clients in lockstep: each round every client reports its next job's arrival time and no client advances past the earliest one, so the two job streams keep a consistent global order |
 | Multi-cluster dispatch | 2 | CTest (`test_python_performance_dispatch`, `test_mpi_performance_dispatch`) | Python/gRPC policy and native MPI coverage for app/workload sampling, CPU/GPU compatibility, runtime scaling, Turnaround, RelPerfOnly, and WaitTimeOnly placement, missing-prediction wait fallback and audit flags, adapted-limit and actual-duration wall-time policies, evaluation metrics, machine-size eligibility, and oversized-request truncation |
-| Backfill-window gRPC | 5 repeated checks | `run_backfill_window_grpc_test.sh` | Focused rerun of the gRPC streaming binary; one check targets the backfill window |
+| Backfill-window gRPC | 4 repeated checks | `run_backfill_window_grpc_test.sh` | Focused rerun of the gRPC streaming binary; one check targets the backfill window |
 | Single-coordinator gRPC | 1 | `test_grpc_single_coordinator.py` | Synchronized independent simulation servers |
 | Queue input schema | 1 binary | CTest or installed `test_queue_input` | Legacy queue names or numeric queue IDs, plus accepted and rejected replay/simulation runtime invariants |
 | Ser20-disabled serialization | 2 binaries | `t_state_rngen` and `t_state` | Native state serialization without Ser20 |
-| Trace tools | 3 | `test_trace_tools.py` via CTest | Capacity inference, simulator-format conversion, direct schedule loading, and warm-start boundary/output behavior |
+| Trace tools | 4 | `test_trace_tools.py` via CTest | Capacity inference, simulator-format conversion, direct schedule loading, checkpoint output stitching, and warm-start boundary/output behavior |
 | Maximum time | 3 CLI cases | `run_max_time_tests.sh` | Inclusive cutoff behavior in simulation, replay, and warm-start execution |
 | Warm start | 1 native binary + 9 CLI cases | CTest (`test_warm_start`, `test_warm_start_validation`) | Boundary classification, two-stage execution, runtime modes, capacity transitions, policies/queues, accounting/output, numeric/ISO simulation-start times, zero-start replay, inclusive maximum time, per-file timestamp encoding, and invalid configurations |
 | SWF input | 8 CLI cases | `run_swf_tests.sh` (CTest `test_swf`) | Standard Workload Format parsing: equivalence with simple-format CSV, header-derived and overridden cores-per-node, MaxNodes as the default machine size, skipped records, malformed lines, and option consistency |
-| Native CTest | 19, plus 1 with MPI | CTest | RNG and binary serialization, exact checkpoint/restart, trace policies, replay reclamation, custom scheduling, append/streaming APIs, maximum-time and warm-start coverage, capacity parsing, queue implementations, CLI dispatch, command-line input selection, and SWF input; CTest also registers the Python trace-tools test |
+| Native CTest | 19 native, 2 Python, plus 2 with MPI | CTest | RNG and binary serialization, exact checkpoint/restart, trace policies, replay reclamation, custom scheduling, append/streaming APIs, maximum-time and warm-start coverage, capacity parsing, queue implementations, CLI dispatch, command-line input selection, and SWF input; CTest also registers the Python trace-tools and multi-cluster dispatch tests, and the MPI streaming and MPI dispatch tests when MPI is available |
 
 The gRPC portion of the append-job runner is skipped when gRPC support was not
-built. The backfill-window runner executes the same five-check gRPC test binary
-as the append-job runner, so it is a focused rerun rather than five additional
+built. The backfill-window runner executes the same four-check gRPC test binary
+as the append-job runner, so it is a focused rerun rather than four additional
 unique checks. Counts describe the checks performed by each runner; the native
 CTest and focused-runner rows intentionally overlap.
 
@@ -127,6 +129,9 @@ CTest and focused-runner rows intentionally overlap.
 - `test_traces/scheduler_correctness/`: small FCFS/EASY comparison fixtures;
 - `test_traces/unit/`: parsing and basic execution fixtures;
 - `test_traces/feature/`: policy, replay, and buffer fixtures;
+- `test_traces/grpc/`: traces for the gRPC client/server and MPI lockstep tests;
+- `test_traces/progressive/`: multi-file progressive-loading fixtures;
+- `test_traces/replay/`: replay-mode fixtures;
 - `test_traces/tools/`: capacity-analysis and warm-start fixtures;
 - `test_traces/swf/`: Standard Workload Format fixtures and their CSV equivalents;
 - `test_traces/scale/`: larger workloads; and

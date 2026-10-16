@@ -185,15 +185,13 @@ See [Redis Output](../user-guide/redis-output.md) for the runtime options.
 
 **Testing:**
 ```bash
-# Register ordinary CTest tests
-cmake -S . -B build -DBUILD_TESTING=ON
-
-# Enable the Catch2-based unit-test framework
+# Register the CTest suite (also provides the Catch2 unit-test framework)
 cmake -S . -B build -DDR_EVT_WITH_UNIT_TESTING=ON
 ```
 
-`BUILD_TESTING` controls ordinary CTest registration. `DR_EVT_WITH_UNIT_TESTING`
-enables the separate Catch2-based unit-test framework.
+All CTest registrations require `DR_EVT_WITH_UNIT_TESTING=ON`; CMake's generic
+`BUILD_TESTING` has no separate effect in this project. The shell test runners
+under `tests/` work against an installed build regardless of this option.
 
 **Build type:**
 ```bash
