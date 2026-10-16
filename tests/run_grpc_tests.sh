@@ -62,10 +62,39 @@ PASS=0
 FAIL=0
 TRACE_DIR="$REPO_ROOT/tests/test_traces/grpc"
 
+# Ports are chosen at run time so a stale server or an unrelated process on
+# the host cannot make the tests fail with "Address already in use". The
+# starting points can be overridden with DR_EVT_GRPC_TEST_PORT and
+# DR_EVT_GRPC_TEST_BASE_PORT.
+port_in_use() {
+    (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null
+}
+# pick_free_ports START COUNT: print the first port of COUNT consecutive
+# free ports at or after START, searching 200 ports.
+pick_free_ports() {
+    local start=$1 count=$2 base port ok
+    for ((base = start; base < start + 200; base += count)); do
+        ok=1
+        for ((port = base; port < base + count; port++)); do
+            if port_in_use "$port"; then
+                ok=0
+                break
+            fi
+        done
+        if (( ok )); then
+            echo "$base"
+            return 0
+        fi
+    done
+    echo "no free port range found starting at $start" >&2
+    return 1
+}
+
 # --- Test 1: basic single-pair server/client session ---
 echo "Testing: basic_server_client_session"
 
-PORT=53001
+PORT=$(pick_free_ports "${DR_EVT_GRPC_TEST_PORT:-53001}" 1)
+echo "  using port $PORT"
 (cd "$RUN_DIR" && exec "$SERVER" "127.0.0.1:${PORT}") \
     > "$RUN_DIR/basic-server.log" 2>&1 &
 SERVER_PID=$!
@@ -128,12 +157,15 @@ else
     if [ -z "$MPI_LAUNCHER_NAME" ]; then
         echo "  ⚠ SKIP - neither mpirun nor srun is available on PATH"
     else
+        # The harness binds base_port and base_port + 1 for its two servers.
+        MPI_BASE_PORT=$(pick_free_ports "${DR_EVT_GRPC_TEST_BASE_PORT:-53100}" 2)
+        echo "  using ports $MPI_BASE_PORT-$((MPI_BASE_PORT + 1))"
         if MPI_OUT=$("${MPI_LAUNCHER[@]}" /bin/bash -c '
             cd "$1"
             shift
             exec "$@"
         ' grpc-test-rank "$RUN_DIR" "$MPI_TEST" \
-            "$SERVER" 53100 \
+            "$SERVER" "$MPI_BASE_PORT" \
             "$TRACE_DIR/composite_server1.csv" "$TRACE_DIR/composite_server2.csv" \
             "$TRACE_DIR/composite_jobs.csv" 2>&1); then
             MPI_STATUS=0
